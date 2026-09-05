@@ -117,6 +117,7 @@ KYC & vehicle-document verification
 RBAC
 Rate limiting
 Audit logs
+
 🔄 System Architecture
                  ┌────────────────────┐
                  │   React + Vite     │
