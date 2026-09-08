@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Optional
+import uuid
 
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
@@ -80,7 +81,12 @@ def get_current_user(
         )
         
     # SQLAlchemy 2.x execution style
-    stmt = select(User).where(User.id == user_id)
+    try:
+        query_id = uuid.UUID(str(user_id))
+    except (ValueError, AttributeError):
+        query_id = user_id
+
+    stmt = select(User).where(User.id == query_id)
     user = db.execute(stmt).scalar_one_or_none()
     
     if user is None:

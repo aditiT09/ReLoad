@@ -40,7 +40,8 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
         pickup_lng=request.pickup_lng,
         dropoff_lat=request.dropoff_lat,
         dropoff_lng=request.dropoff_lng,
-        vehicle_type=request.vehicle_type
+        vehicle_type=request.vehicle_type,
+        cargo_category=request.cargo_category
     )
     
     # 3. Create the Booking row

@@ -3,7 +3,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routers import auth, vehicles, bookings, gps, safety
+from app.routers import (
+    auth, vehicles, bookings, gps, safety,
+    surcharges, handoffs, payments, chat, notifications
+)
 
 app = FastAPI(
     title="ReLoad Backend — Trust-First City Logistics Platform",
@@ -25,7 +28,13 @@ app.include_router(auth.router)
 app.include_router(vehicles.router)
 app.include_router(bookings.router)
 app.include_router(gps.router)
+app.include_router(gps.ws_router)
 app.include_router(safety.router)
+app.include_router(surcharges.router)
+app.include_router(handoffs.router)
+app.include_router(payments.router)
+app.include_router(chat.router)
+app.include_router(notifications.router)
 
 
 @app.get("/", tags=["health"])

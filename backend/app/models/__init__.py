@@ -15,6 +15,7 @@ from app.models.trust_score import TrustScore, TrustSubjectType
 from app.models.document import Document, DocumentType
 from app.models.message import Message
 from app.models.notification import Notification
+from app.models.payment import Payment, PaymentRecordStatus
 
 __all__ = [
     "Base",
@@ -31,4 +32,5 @@ __all__ = [
     "Document", "DocumentType",
     "Message",
     "Notification",
+    "Payment", "PaymentRecordStatus",
 ]
