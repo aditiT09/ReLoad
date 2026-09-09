@@ -2,7 +2,7 @@
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-
+from app.routers.ml import router as ml_router
 from app.routers import (
     auth, vehicles, bookings, gps, safety,
     surcharges, handoffs, payments, chat, notifications
@@ -35,6 +35,7 @@ app.include_router(handoffs.router)
 app.include_router(payments.router)
 app.include_router(chat.router)
 app.include_router(notifications.router)
+app.include_router(ml_router)
 
 
 @app.get("/", tags=["health"])
