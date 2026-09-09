@@ -154,7 +154,7 @@ async def gps_tracking_websocket(
                     "driver_id": str(user.id),
                     "booking_id": str(booking_id)
                 }
-                await manager.broadcast(booking_id, broadcast_data, room_type="gps")
+                await manager.broadcast(booking_id, broadcast_data, room_type="gps", exclude=websocket)
             else:
                 # Customer listener ping/keepalive
                 pass
