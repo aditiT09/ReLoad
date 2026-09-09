@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.core.security import require_role
 from app.models.vehicle import Vehicle
 from app.schemas.vehicle import VehicleCreate, VehicleResponse
+from app.services.trust_service import refresh_vehicle_verification
 router = APIRouter(prefix="/api/v1/vehicles", tags=["vehicles"])
 @router.post("/", response_model=VehicleResponse, status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_role("driver", "company_admin"))])
 def create_vehicle(request: VehicleCreate, db: Session = Depends(get_db)):
@@ -40,7 +41,8 @@ def get_vehicle(vehicle_id: uuid.UUID, db: Session = Depends(get_db)):
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Vehicle not found"
         )
-        
+    refresh_vehicle_verification(vehicle)
+    db.commit()
     return vehicle
 @router.get("/", response_model=List[VehicleResponse])
 def list_vehicles(driver_id: Optional[uuid.UUID] = None, db: Session = Depends(get_db)):
@@ -50,5 +52,7 @@ def list_vehicles(driver_id: Optional[uuid.UUID] = None, db: Session = Depends(g
         stmt = stmt.where(Vehicle.driver_id == driver_id)
         
     vehicles = db.execute(stmt).scalars().all()
-    
+    for vehicle in vehicles:
+        refresh_vehicle_verification(vehicle)
+    db.commit()
     return vehicles

@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers import (
     auth, vehicles, bookings, gps, safety,
-    surcharges, handoffs, payments, chat, notifications
+    surcharges, handoffs, payments, chat, notifications, trust
 )
 
 app = FastAPI(
@@ -35,6 +35,7 @@ app.include_router(handoffs.router)
 app.include_router(payments.router)
 app.include_router(chat.router)
 app.include_router(notifications.router)
+app.include_router(trust.router)
 
 
 @app.get("/", tags=["health"])
