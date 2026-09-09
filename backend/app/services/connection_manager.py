@@ -36,14 +36,22 @@ class ConnectionManager:
             if not room[key]:
                 del room[key]
 
-    async def broadcast(self, booking_id: uuid.UUID, message: dict, room_type: str = "chat"):
+    async def broadcast(
+        self,
+        booking_id: uuid.UUID,
+        message: dict,
+        room_type: str = "chat",
+        exclude: WebSocket = None
+    ):
         key = str(booking_id)
         room = self._get_room(room_type)
         if key not in room:
             return
 
         dead_connections = []
-        for connection in room[key]:
+        for connection in list(room[key]):
+            if exclude is not None and connection == exclude:
+                continue
             try:
                 await connection.send_json(message)
             except Exception:
@@ -55,11 +63,17 @@ class ConnectionManager:
         if not room[key]:
             del room[key]
 
-    def broadcast_sync(self, booking_id: uuid.UUID, message: dict, room_type: str = "chat"):
+    def broadcast_sync(
+        self,
+        booking_id: uuid.UUID,
+        message: dict,
+        room_type: str = "chat",
+        exclude: WebSocket = None
+    ):
         import asyncio
         try:
             loop = asyncio.get_running_loop()
-            loop.create_task(self.broadcast(booking_id, message, room_type))
+            loop.create_task(self.broadcast(booking_id, message, room_type, exclude=exclude))
         except RuntimeError:
             pass
 

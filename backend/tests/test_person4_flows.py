@@ -532,22 +532,24 @@ def test_websockets_chat_and_gps():
     client.patch(f"/api/v1/bookings/{booking.id}/status", json={"status": "pickup_confirmed"})
     client.patch(f"/api/v1/bookings/{booking.id}/status", json={"status": "in_transit"})
 
-    # 1. Chat WebSocket
-    with client.websocket_connect(f"/ws/bookings/{booking.id}/chat?token={tokens['customer']}") as ws_cust:
-        with client.websocket_connect(f"/ws/bookings/{booking.id}/chat?token={tokens['driver']}") as ws_driver:
-            ws_cust.send_text("Hello driver via WebSocket!")
-            msg_recv = ws_driver.receive_json()
-            assert msg_recv["content"] == "Hello driver via WebSocket!"
-            assert msg_recv["sender_id"] == str(customer.id)
+    # Use TestClient context manager so both WebSockets share the same AnyIO BlockingPortal event loop
+    with TestClient(app) as ws_client:
+        # 1. Chat WebSocket
+        with ws_client.websocket_connect(f"/ws/bookings/{booking.id}/chat?token={tokens['customer']}") as ws_cust:
+            with ws_client.websocket_connect(f"/ws/bookings/{booking.id}/chat?token={tokens['driver']}") as ws_driver:
+                ws_cust.send_text("Hello driver via WebSocket!")
+                msg_recv = ws_driver.receive_json()
+                assert msg_recv["content"] == "Hello driver via WebSocket!"
+                assert msg_recv["sender_id"] == str(customer.id)
 
-    # 2. GPS WebSocket
-    with client.websocket_connect(f"/ws/bookings/{booking.id}/tracking?token={tokens['customer']}") as ws_cust_gps:
-        with client.websocket_connect(f"/ws/bookings/{booking.id}/tracking?token={tokens['driver']}") as ws_driver_gps:
-            ws_driver_gps.send_text('{"lat": 26.8550, "lng": 80.9550}')
-            gps_recv = ws_cust_gps.receive_json()
-            assert gps_recv["lat"] == 26.8550
-            assert gps_recv["lng"] == 80.9550
-            assert gps_recv["driver_id"] == str(driver.id)
+        # 2. GPS WebSocket
+        with ws_client.websocket_connect(f"/ws/bookings/{booking.id}/tracking?token={tokens['customer']}") as ws_cust_gps:
+            with ws_client.websocket_connect(f"/ws/bookings/{booking.id}/tracking?token={tokens['driver']}") as ws_driver_gps:
+                ws_driver_gps.send_text('{"lat": 26.8550, "lng": 80.9550}')
+                gps_recv = ws_cust_gps.receive_json()
+                assert gps_recv["lat"] == 26.8550
+                assert gps_recv["lng"] == 80.9550
+                assert gps_recv["driver_id"] == str(driver.id)
 
 
 # ==========================================

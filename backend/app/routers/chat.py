@@ -168,7 +168,7 @@ async def chat_websocket(
                 "content": msg.content,
                 "timestamp": msg.timestamp.isoformat()
             }
-            await manager.broadcast(booking_id, broadcast_data, room_type="chat")
+            await manager.broadcast(booking_id, broadcast_data, room_type="chat", exclude=websocket)
 
             recipient_id = booking.driver_id if user.id == booking.customer_id else booking.customer_id
             if recipient_id:
