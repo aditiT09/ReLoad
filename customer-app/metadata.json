@@ -1,0 +1,6 @@
+{
+  "name": "Reload",
+  "description": "Cargo vehicle booking app with a Locked Fare Guarantee, verified drivers, live trip tracking, and multivariant language support.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
