@@ -1,6 +1,0 @@
-{
-  "name": "Driver",
-  "description": "Fast, high-contrast driver app for quick one-handed cargo pickups, active trip routing, regulated vehicle verification, and handoffs.",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}
