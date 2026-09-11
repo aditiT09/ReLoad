@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import DriverBottomNav from '@/components/driver/DriverBottomNav';
+import { bookings } from '@/lib/api';
 
 export default function DriverHomePage() {
   const router = useRouter();
@@ -28,14 +29,20 @@ export default function DriverHomePage() {
     return () => clearInterval(interval);
   }, [secondsLeft, isRejected, isAccepting]);
 
-  const handleAccept = () => {
+  const handleAccept = async () => {
     setIsAccepting(true);
+    try {
+      const latestId = localStorage.getItem('latest_booking_id');
+      if (latestId) {
+        await bookings.updateStatus(latestId, 'accepted');
+      }
+    } catch (err) {
+      console.log('Status update error:', err);
+    }
+    setShowToast(true);
     setTimeout(() => {
-      setShowToast(true);
-      setTimeout(() => {
-        router.push('/driver/navigation');
-      }, 1200);
-    }, 800);
+      router.push('/driver/navigation');
+    }, 1200);
   };
 
   const toggleAudio = () => {

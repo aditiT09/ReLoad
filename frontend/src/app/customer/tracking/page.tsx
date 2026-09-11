@@ -1,9 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import CustomerBottomNav from "@/components/customer/CustomerBottomNav";
 import { useLanguage } from "@/context/LanguageContext";
+import { bookings } from "@/lib/api";
 
 interface ChatMessage {
   id: string;
@@ -17,6 +18,16 @@ interface ChatMessage {
 export default function CustomerActiveTrackingPage() {
   const { currentLanguage, setLangModalOpen, t } = useLanguage();
   const [surchargeStatus, setSurchargeStatus] = useState<"pending" | "accepted" | "declined">("pending");
+  const [booking, setBooking] = useState<any>(null);
+
+  useEffect(() => {
+    const latestId = localStorage.getItem("latest_booking_id");
+    if (latestId) {
+      bookings.get(latestId)
+        .then((b: any) => setBooking(b))
+        .catch((err) => console.log(err));
+    }
+  }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: "1",
@@ -147,10 +158,14 @@ export default function CustomerActiveTrackingPage() {
           {/* Consignment Tracker */}
           <section className="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">CONSIGNMENT #RL-9042</span>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                CONSIGNMENT #{booking?.id ? String(booking.id).slice(0, 8).toUpperCase() : 'RL-9042'}
+              </span>
               <div className="flex items-center space-x-1.5 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
                 <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                <span className="text-[11px] font-bold text-emerald-800">GPS Live</span>
+                <span className="text-[11px] font-bold text-emerald-800 capitalize">
+                  {booking?.status ? String(booking.status).replace('_', ' ') : 'GPS Live'}
+                </span>
               </div>
             </div>
 
