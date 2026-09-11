@@ -2,40 +2,40 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Run Customer App (Port 3000)",
+      "label": "Start Backend (FastAPI)",
       "type": "shell",
-      "command": "npm run dev",
+      "command": ".\\venv\\Scripts\\python.exe -m uvicorn app.main:app --reload --port 8000",
       "options": {
-        "cwd": "${workspaceFolder}/customer-app"
+        "cwd": "${workspaceFolder}/backend"
       },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
-        "group": "reload-apps",
+        "group": "reload",
         "reveal": "always",
         "panel": "dedicated"
       }
     },
     {
-      "label": "Run Driver App (Port 3001)",
+      "label": "Start Frontend (Next.js)",
       "type": "shell",
       "command": "npm run dev",
       "options": {
-        "cwd": "${workspaceFolder}/driver-app"
+        "cwd": "${workspaceFolder}/frontend"
       },
       "isBackground": true,
       "problemMatcher": [],
       "presentation": {
-        "group": "reload-apps",
+        "group": "reload",
         "reveal": "always",
         "panel": "dedicated"
       }
     },
     {
-      "label": "Run Both Apps",
+      "label": "Start Fullstack (Frontend + Backend)",
       "dependsOn": [
-        "Run Customer App (Port 3000)",
-        "Run Driver App (Port 3001)"
+        "Start Backend (FastAPI)",
+        "Start Frontend (Next.js)"
       ],
       "group": {
         "kind": "build",

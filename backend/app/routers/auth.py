@@ -68,9 +68,27 @@ def login(request: LoginRequest, db: Session = Depends(get_db)):
     return TokenResponse(access_token=access_token)
 
 
-@router.post("/verify-otp")
-def verify_otp(request: OTPVerifyRequest):
-    # MOCK implementation: accepts any 6-digit code validated by the Pydantic schema
+@router.post("/verify-otp", response_model=TokenResponse)
+def verify_otp(request: OTPVerifyRequest, db: Session = Depends(get_db)):
+    # Accepts any 6-digit code during dev/hackathon demo
     print(f"[MOCK OTP] Phone: {request.phone} | Code: {request.otp_code}")
     
-    return {"message": "OTP verified successfully"}
+    formatted_phone = request.phone if request.phone.startswith("+") else f"+91{request.phone}"
+    stmt = select(User).where(User.phone == formatted_phone)
+    user = db.execute(stmt).scalar_one_or_none()
+    
+    if not user:
+        # Create new customer user directly in Supabase Postgres
+        hashed_pw = hash_password(request.otp_code)
+        user = User(
+            role="customer",
+            name=f"Shipper {formatted_phone[-4:]}",
+            phone=formatted_phone,
+            password_hash=hashed_pw
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        
+    access_token = create_access_token(data={"sub": str(user.id)})
+    return TokenResponse(access_token=access_token)

@@ -18,6 +18,7 @@ from app.services.booking_state_machine import can_transition
 router = APIRouter(prefix="/api/v1/bookings", tags=["bookings"])
 
 
+@router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
     # 1. Enforce verified vehicle matching (never fall back to unverified)
@@ -91,6 +92,7 @@ def get_booking(booking_id: uuid.UUID, db: Session = Depends(get_db)):
     return booking
 
 
+@router.get("", response_model=List[BookingResponse])
 @router.get("/", response_model=List[BookingResponse])
 def list_bookings(
     customer_id: Optional[uuid.UUID] = None,

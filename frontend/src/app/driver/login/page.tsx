@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { auth, setToken } from '@/lib/api';
 
 export default function DriverLoginPage() {
   const router = useRouter();
@@ -11,6 +12,10 @@ export default function DriverLoginPage() {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [phone, setPhone] = useState('');
+  const [driverName, setDriverName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
   const toggleVoice = () => {
     setIsPlayingVoice(!isPlayingVoice);
@@ -161,27 +166,24 @@ export default function DriverLoginPage() {
             </div>
           </div>
 
-          {/* Verified Mobile & Driver State Badge */}
-          <div className="bg-white rounded-xl p-4 shadow-xs border border-[#E2E8F0] flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-11 h-11 rounded-full bg-[#E6F4F1] text-[#0F6E56] flex items-center justify-center font-bold">
-                <span className="material-symbols-outlined text-2xl">verified_user</span>
-              </div>
-              <div>
-                <span className="font-display text-[11px] text-[#64748B] uppercase font-bold tracking-wider">
-                  ड्राइवर मोबाइल (Verified Driver)
-                </span>
-                <div className="font-display text-sm font-bold text-[#111c29] tracking-wide flex items-center gap-1.5">
-                  +91 98230 ••••42
-                  <span className="material-symbols-outlined text-[#0F6E56] text-base" style={{ fontVariationSettings: "'FILL' 1" }}>
-                    check_circle
-                  </span>
-                </div>
-              </div>
+          {/* Phone Number Input */}
+          <div className="bg-white rounded-xl p-4 shadow-xs border border-[#E2E8F0] flex flex-col gap-2">
+            <label className="font-display text-xs font-bold text-[#5A6578]">Mobile Number • मोबाइल नंबर</label>
+            <div className="flex items-center h-12 bg-[#F8F9FA] border border-slate-200 rounded-xl px-3.5 focus-within:border-[#0F6E56] focus-within:bg-white transition-all">
+              <span className="font-display text-sm font-bold text-[#111c29] pr-2">🇮🇳 +91</span>
+              <div className="h-5 w-px bg-slate-300 mx-2" />
+              <input
+                className="w-full bg-transparent font-display text-sm text-[#111c29] outline-none font-bold tracking-wider"
+                inputMode="numeric" maxLength={10} value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="98765 43210" type="tel"
+              />
             </div>
-            <button className="min-h-[40px] px-3 font-display text-xs text-[#0051d5] font-bold hover:underline flex items-center" type="button">
-              बदलें
-            </button>
+            <input
+              className="h-10 bg-[#F8F9FA] border border-slate-200 rounded-lg px-3 font-display text-sm text-[#111c29] outline-none focus:border-[#0F6E56]"
+              value={driverName} onChange={(e) => setDriverName(e.target.value)}
+              placeholder="Your name (नाम)" type="text"
+            />
           </div>
 
           {/* Govt Integration Trust Seal */}
@@ -371,13 +373,41 @@ export default function DriverLoginPage() {
           {/* Bottom Sticky CTA Button */}
           <div className="pt-2">
             <button
-              onClick={() => router.push('/driver/home')}
-              className="w-full min-h-[56px] h-14 bg-[#0F6E56] hover:bg-[#0B5240] text-white rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all"
+              onClick={async () => {
+                if (!phone || phone.length < 10) { setError('Enter a valid 10-digit phone number'); return; }
+                setIsLoading(true);
+                setError('');
+                try {
+                  // Try login first
+                  const result = await auth.login({ phone: `+91${phone}`, password: 'driver-otp' });
+                  setToken(result.access_token);
+                  router.push('/driver/home');
+                } catch {
+                  // New driver — signup
+                  try {
+                    const result = await auth.signup({
+                      role: 'driver',
+                      name: driverName || `Driver-${phone}`,
+                      phone: `+91${phone}`,
+                      password: 'driver-otp',
+                    });
+                    setToken(result.access_token);
+                    router.push('/driver/home');
+                  } catch (signupErr: unknown) {
+                    setError(signupErr instanceof Error ? signupErr.message : 'Registration failed');
+                  }
+                } finally {
+                  setIsLoading(false);
+                }
+              }}
+              className="w-full min-h-[56px] h-14 bg-[#0F6E56] hover:bg-[#0B5240] disabled:opacity-60 text-white rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all"
               type="button"
+              disabled={isLoading}
             >
-              <span>Save &amp; Continue • आगे बढ़ें</span>
+              <span>{isLoading ? 'Please wait...' : 'Save & Continue • आगे बढ़ें'}</span>
               <span className="material-symbols-outlined text-2xl">arrow_forward</span>
             </button>
+            {error && <p className="text-red-500 text-xs text-center font-display mt-2">{error}</p>}
             <p className="font-display text-[11px] text-center text-[#64748B] mt-2 font-semibold">
               अगला चरण: ट्रिप लोड असाइनमेंट (Next: Ready to haul freight)
             </p>

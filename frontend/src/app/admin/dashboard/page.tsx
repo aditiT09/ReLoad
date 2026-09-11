@@ -1,10 +1,25 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import AdminLayout from '@/components/admin/AdminLayout';
+import { bookings } from '@/lib/api';
 
 export default function AdminDashboardPage() {
+  const [bookingCount, setBookingCount] = useState<number | null>(null);
+  const [recentBookings, setRecentBookings] = useState<any[]>([]);
+
+  useEffect(() => {
+    bookings
+      .list()
+      .then((data: any) => {
+        if (Array.isArray(data)) {
+          setBookingCount(data.length);
+          setRecentBookings(data.slice(-5).reverse());
+        }
+      })
+      .catch((err) => console.error('Admin dashboard fetch error:', err));
+  }, []);
   return (
     <AdminLayout>
       <div className="flex flex-col w-full space-y-6">
@@ -83,8 +98,10 @@ export default function AdminDashboardPage() {
               </div>
 
               <div className="flex items-baseline gap-2 my-1">
-                <span className="font-display text-4xl font-extrabold text-[#111c29] tracking-tight">412</span>
-                <span className="font-display text-xs text-[#64748B]">Vehicles on Network</span>
+                <span className="font-display text-4xl font-extrabold text-[#111c29] tracking-tight">
+                  {bookingCount !== null ? bookingCount : '...'}
+                </span>
+                <span className="font-display text-xs text-[#64748B]">Bookings in Supabase DB</span>
               </div>
 
               <div className="w-full bg-slate-100 rounded-full h-2 flex overflow-hidden">

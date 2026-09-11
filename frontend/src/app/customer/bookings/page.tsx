@@ -1,13 +1,28 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import CustomerBottomNav from "@/components/customer/CustomerBottomNav";
 import { useLanguage } from "@/context/LanguageContext";
+import { bookings } from "@/lib/api";
 
 export default function CustomerBookingsPage() {
   const { currentLanguage, setLangModalOpen } = useLanguage();
   const [activeTab, setActiveTab] = useState<"active" | "past">("active");
+  const [dbBookings, setDbBookings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    bookings
+      .list()
+      .then((data: any) => {
+        if (Array.isArray(data)) {
+          setDbBookings(data);
+        }
+      })
+      .catch((err) => console.error("Error fetching bookings:", err))
+      .finally(() => setIsLoading(false));
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#F8F9FA] antialiased selection:bg-brand-tint selection:text-brand flex flex-col">
@@ -82,73 +97,85 @@ export default function CustomerBookingsPage() {
           {/* ACTIVE BOOKINGS */}
           {activeTab === "active" && (
             <div className="space-y-3">
-              <div className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col gap-3 relative overflow-hidden">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-brand flex items-center justify-center shrink-0">
-                      <span className="material-symbols-outlined text-[18px]">tag</span>
+              {isLoading && (
+                <div className="p-8 text-center bg-white rounded-xl border border-slate-100">
+                  <span className="material-symbols-outlined text-3xl animate-spin text-[#0F6E56]">sync</span>
+                  <p className="text-xs text-slate-500 mt-2">Loading live bookings from Supabase PostgreSQL...</p>
+                </div>
+              )}
+
+              {!isLoading && dbBookings.length === 0 && (
+                <div className="p-8 text-center bg-white rounded-xl border border-slate-100">
+                  <p className="text-xs text-slate-500">No active bookings found.</p>
+                </div>
+              )}
+
+              {dbBookings.slice(0, 8).map((b) => (
+                <div key={b.id} className="bg-white rounded-xl shadow-sm border border-slate-100 p-4 flex flex-col gap-3 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-50 text-[#0F6E56] flex items-center justify-center shrink-0">
+                        <span className="material-symbols-outlined text-[18px]">tag</span>
+                      </div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-bold text-slate-900 tracking-tight">#{String(b.id).slice(0, 8).toUpperCase()}</span>
+                        <span className="text-[11px] text-slate-500 capitalize">{b.cargo_category} Cargo</span>
+                      </div>
                     </div>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-bold text-slate-900 tracking-tight">#RL-9042</span>
-                      <span className="text-[11px] text-slate-500">32 Ft Multi-Axle Reefer</span>
+
+                    <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-[#0F6E56] border border-emerald-200 shrink-0 text-[11px] font-bold">
+                      <span className="h-2 w-2 rounded-full bg-[#0F6E56] animate-pulse"></span>
+                      <span className="capitalize">{String(b.status).replace('_', ' ')}</span>
                     </div>
                   </div>
 
-                  <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200 shrink-0 text-[11px] font-bold">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
-                    </span>
-                    <span>In Transit • 14m away</span>
+                  <div className="bg-slate-50 rounded-lg p-2.5 flex flex-col gap-2 text-xs">
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-[#0F6E56] text-[18px] mt-0.5">trip_origin</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] text-slate-500">Pickup (उठाव)</span>
+                        <span className="font-semibold text-slate-900 truncate">{b.pickup_address}</span>
+                      </div>
+                    </div>
+
+                    <div className="ml-2 w-0.5 h-2.5 bg-slate-300"></div>
+
+                    <div className="flex items-start gap-2">
+                      <span className="material-symbols-outlined text-red-600 text-[18px] mt-0.5">location_on</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10px] text-slate-500">Drop (पहुंच)</span>
+                        <span className="font-semibold text-slate-900 truncate">{b.dropoff_address}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] text-slate-500">Guaranteed Fare (भाड़ा)</span>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-base font-bold text-slate-900">₹{b.base_fare}</span>
+                        <span className="text-[10px] text-[#0F6E56] font-semibold">Locked</span>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Link
+                        href={`/customer/receipt?id=${b.id}`}
+                        className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-bold"
+                      >
+                        Receipt
+                      </Link>
+                      <Link
+                        href="/customer/tracking"
+                        className="h-10 px-3.5 rounded-xl bg-[#0F6E56] hover:bg-[#0B5240] text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-colors"
+                      >
+                        <span className="material-symbols-outlined text-[16px]">near_me</span>
+                        <span>Track</span>
+                      </Link>
+                    </div>
                   </div>
                 </div>
-
-                <div className="bg-slate-50 rounded-lg p-2.5 flex flex-col gap-2 text-xs">
-                  <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined text-brand text-[18px] mt-0.5">trip_origin</span>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] text-slate-500">Pickup (उठाव)</span>
-                      <span className="font-semibold text-slate-900 truncate">Mumbai Port Terminal 2</span>
-                    </div>
-                  </div>
-
-                  <div className="ml-2 w-0.5 h-2.5 bg-slate-300"></div>
-
-                  <div className="flex items-start gap-2">
-                    <span className="material-symbols-outlined text-red-600 text-[18px] mt-0.5">location_on</span>
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-[10px] text-slate-500">Drop (पहुंच)</span>
-                      <span className="font-semibold text-slate-900 truncate">Chakan MIDC Phase 2, Pune</span>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-1 border-t border-slate-100">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-slate-500">Guaranteed Fare (भाड़ा)</span>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-base font-bold text-slate-900">₹14,200</span>
-                      <span className="text-[10px] text-brand font-semibold">Locked</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-2">
-                    <a
-                      href="tel:1800123456"
-                      className="w-10 h-10 rounded-xl bg-slate-100 text-brand flex items-center justify-center hover:bg-slate-200 transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[20px]">call</span>
-                    </a>
-                    <Link
-                      href="/customer/tracking"
-                      className="h-10 px-3.5 rounded-xl bg-brand hover:bg-brand-dark text-white text-xs font-bold flex items-center gap-1 shadow-sm transition-colors"
-                    >
-                      <span className="material-symbols-outlined text-[16px]">near_me</span>
-                      <span>Live Track</span>
-                    </Link>
-                  </div>
-                </div>
-              </div>
+              ))}
             </div>
           )}
 

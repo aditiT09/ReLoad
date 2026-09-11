@@ -3,20 +3,41 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { auth, setToken } from '@/lib/api';
 
 export default function AdminLoginPage() {
   const router = useRouter();
-  const [operatorId, setOperatorId] = useState('DISPATCH-MUM-09');
-  const [authPin, setAuthPin] = useState('••••••');
+  const [operatorId, setOperatorId] = useState('');
+  const [authPin, setAuthPin] = useState('');
   const [hubNode, setHubNode] = useState('west-corridor');
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!operatorId || !authPin) { setError('Enter operator ID and PIN'); return; }
     setIsLoading(true);
-    setTimeout(() => {
+    setError('');
+    try {
+      const result = await auth.login({ phone: operatorId, password: authPin });
+      setToken(result.access_token);
       router.push('/admin/dashboard');
-    }, 800);
+    } catch {
+      // Try signup as company_admin
+      try {
+        const result = await auth.signup({
+          role: 'company_admin',
+          name: operatorId,
+          phone: operatorId,
+          password: authPin,
+        });
+        setToken(result.access_token);
+        router.push('/admin/dashboard');
+      } catch (err: unknown) {
+        setError(err instanceof Error ? err.message : 'Authentication failed');
+        setIsLoading(false);
+      }
+    }
   };
 
   return (
@@ -195,6 +216,7 @@ export default function AdminLoginPage() {
                 </>
               )}
             </button>
+            {error && <p className="text-red-500 text-xs text-center font-display mt-2">{error}</p>}
           </form>
 
           <div className="text-center text-[11px] text-[#5A6578] border-t border-slate-100 pt-3 space-y-1">

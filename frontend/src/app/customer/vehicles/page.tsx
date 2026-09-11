@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav';
+import { bookings, getUserId } from '@/lib/api';
 
 interface VehicleOption {
   id: string;
@@ -74,11 +75,45 @@ export default function CustomerVehiclesPage() {
   const router = useRouter();
   const [selectedId, setSelectedId] = useState('reefer-32');
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingError, setBookingError] = useState('');
 
   const selectedVehicle = VEHICLES.find((v) => v.id === selectedId) || VEHICLES[0];
 
-  const handleBook = () => {
-    router.push('/customer/tracking');
+  const handleBook = async () => {
+    setIsBooking(true);
+    setBookingError('');
+    try {
+      const typeMapping: Record<string, string> = {
+        'reefer-32': 'cold_chain_van',
+        'container-20': 'truck',
+        'bolero-14': 'pickup_14ft',
+      };
+      const vType = typeMapping[selectedId] || 'cold_chain_van';
+      const customerId = getUserId() || '44477809-b0d1-455b-881f-600d09d974ce';
+
+      const payload = {
+        customer_id: customerId,
+        pickup_address: 'Mumbai Port (Nhava Sheva Gate 2)',
+        pickup_lat: 18.9499,
+        pickup_lng: 72.9515,
+        dropoff_address: 'Pune Chakan MIDC Industrial Hub Phase II',
+        dropoff_lat: 18.7606,
+        dropoff_lng: 73.8636,
+        cargo_category: selectedVehicle.isReefer ? 'cold_chain' : 'general',
+        vehicle_type: vType,
+      };
+
+      const res = (await bookings.create(payload)) as { id?: string };
+      if (res?.id) {
+        localStorage.setItem('latest_booking_id', res.id);
+      }
+      router.push('/customer/tracking');
+    } catch (err: unknown) {
+      setBookingError(err instanceof Error ? err.message : 'Booking failed');
+    } finally {
+      setIsBooking(false);
+    }
   };
 
   return (
@@ -266,12 +301,14 @@ export default function CustomerVehiclesPage() {
               <div className="pt-2">
                 <button
                   onClick={handleBook}
-                  className="w-full h-14 min-h-[56px] bg-[#0F6E56] hover:bg-[#0B5240] text-white rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all"
+                  disabled={isBooking}
+                  className="w-full h-14 min-h-[56px] bg-[#0F6E56] hover:bg-[#0B5240] disabled:opacity-60 text-white rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all"
                   type="button"
                 >
                   <span className="material-symbols-outlined text-xl">verified</span>
-                  <span>Confirm &amp; Dispatch Truck ({selectedVehicle.fare})</span>
+                  <span>{isBooking ? 'Dispatching & Saving to Database...' : `Confirm & Dispatch Truck (${selectedVehicle.fare})`}</span>
                 </button>
+                {bookingError && <p className="text-red-600 text-xs text-center font-bold mt-2">{bookingError}</p>}
               </div>
 
               <div className="text-center pt-1">
