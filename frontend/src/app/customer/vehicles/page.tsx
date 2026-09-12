@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav';
 import { bookings, getUserId } from '@/lib/api';
+import { calculateVehicleFares } from '@/lib/locationService';
 
 interface VehicleOption {
   id: string;
@@ -78,9 +79,81 @@ export default function CustomerVehiclesPage() {
   const [isBooking, setIsBooking] = useState(false);
   const [bookingError, setBookingError] = useState('');
 
-  const selectedVehicle = VEHICLES.find((v) => v.id === selectedId) || VEHICLES[0];
+  // Route state loaded from localStorage
+  const [pickupAddress, setPickupAddress] = useState('Mumbai Port (Nhava Sheva Gate 2)');
+  const [dropoffAddress, setDropoffAddress] = useState('Pune Chakan MIDC Industrial Hub Phase II');
+  const [distanceKm, setDistanceKm] = useState(142);
+  const [durationText, setDurationText] = useState('~3.8 hrs via Expressway');
+  const [isColdChain, setIsColdChain] = useState(true);
+  const [coords, setCoords] = useState<{
+    pLat: number;
+    pLng: number;
+    dLat: number;
+    dLng: number;
+  }>({
+    pLat: 18.9499,
+    pLng: 72.9515,
+    dLat: 18.7606,
+    dLng: 73.8636,
+  });
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const p = localStorage.getItem('reload_pickup_address');
+      const d = localStorage.getItem('reload_dropoff_address');
+      const dist = localStorage.getItem('reload_distance_km');
+      const dur = localStorage.getItem('reload_duration_text');
+      const cc = localStorage.getItem('reload_is_cold_chain');
+      const pLat = localStorage.getItem('reload_pickup_lat');
+      const pLng = localStorage.getItem('reload_pickup_lng');
+      const dLat = localStorage.getItem('reload_dropoff_lat');
+      const dLng = localStorage.getItem('reload_dropoff_lng');
+      const prefVehicle = localStorage.getItem('reload_selected_vehicle');
+
+      if (p) setPickupAddress(p);
+      if (d) setDropoffAddress(d);
+      if (dist) setDistanceKm(Number(dist));
+      if (dur) setDurationText(dur);
+      if (cc !== null) setIsColdChain(cc === 'true');
+      if (prefVehicle) setSelectedId(prefVehicle);
+      if (pLat && pLng && dLat && dLng) {
+        setCoords({
+          pLat: Number(pLat),
+          pLng: Number(pLng),
+          dLat: Number(dLat),
+          dLng: Number(dLng),
+        });
+      }
+    }
+  }, []);
+
+  const dynamicFares = useMemo(() => {
+    return calculateVehicleFares(distanceKm, isColdChain);
+  }, [distanceKm, isColdChain]);
+
+  const vehiclesList = useMemo(() => {
+    return VEHICLES.map((v) => {
+      const fareInfo = dynamicFares[v.id];
+      if (!fareInfo) return v;
+      return {
+        ...v,
+        fare: fareInfo.formattedFare,
+        baseFare: fareInfo.baseFare,
+        tollEstimate: fareInfo.tollEstimate,
+        gst: fareInfo.gst,
+      };
+    });
+  }, [dynamicFares]);
+
+  const selectedVehicle = vehiclesList.find((v) => v.id === selectedId) || vehiclesList[0];
+
+  const isValidBooking = Boolean(pickupAddress.trim() && dropoffAddress.trim() && distanceKm > 0);
 
   const handleBook = async () => {
+    if (!isValidBooking) {
+      setBookingError('Please enter both pickup and destination in the route planner before booking.');
+      return;
+    }
     setIsBooking(true);
     setBookingError('');
     try {
@@ -94,12 +167,12 @@ export default function CustomerVehiclesPage() {
 
       const payload = {
         customer_id: customerId,
-        pickup_address: 'Mumbai Port (Nhava Sheva Gate 2)',
-        pickup_lat: 18.9499,
-        pickup_lng: 72.9515,
-        dropoff_address: 'Pune Chakan MIDC Industrial Hub Phase II',
-        dropoff_lat: 18.7606,
-        dropoff_lng: 73.8636,
+        pickup_address: pickupAddress,
+        pickup_lat: coords.pLat,
+        pickup_lng: coords.pLng,
+        dropoff_address: dropoffAddress,
+        dropoff_lat: coords.dLat,
+        dropoff_lng: coords.dLng,
         cargo_category: selectedVehicle.isReefer ? 'cold_chain' : 'general',
         vehicle_type: vType,
       };
@@ -124,7 +197,7 @@ export default function CustomerVehiclesPage() {
           <Link href="/customer/home" className="flex items-center space-x-2.5">
             <span className="material-symbols-outlined text-white text-xl">arrow_back</span>
             <span className="font-display font-extrabold text-base text-white">
-              Available Verified Fleet (3)
+              Available Verified Fleet ({vehiclesList.length})
             </span>
           </Link>
           <div className="flex items-center space-x-2 bg-black/20 px-3 py-1.5 rounded-full text-xs font-semibold">
@@ -143,10 +216,10 @@ export default function CustomerVehiclesPage() {
               <div className="flex items-center justify-between text-xs pb-3 border-b border-white/10">
                 <div className="flex items-center space-x-1.5 bg-emerald-500/20 text-emerald-300 font-display text-[11px] font-bold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
                   <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>4 Trucks Ready Nearby (Nhava Sheva Cluster)</span>
+                  <span>4 Trucks Ready Nearby</span>
                 </div>
                 <div className="text-slate-300 text-[11px] font-mono">
-                  Corridor: <span className="text-white font-bold">#MH-12-EXPR</span>
+                  Corridor: <span className="text-white font-bold">#ROUTE-LIVE</span>
                 </div>
               </div>
 
@@ -155,31 +228,31 @@ export default function CustomerVehiclesPage() {
 
                 {/* Origin */}
                 <div>
-                  <p className="font-display font-bold text-sm text-white">Mumbai Port (Nhava Sheva Gate 2)</p>
-                  <p className="text-slate-300 text-[11px]">मुंबई पोर्ट • 08:00 Dedicated Dock Window</p>
+                  <p className="font-display font-bold text-sm text-white">{pickupAddress}</p>
+                  <p className="text-slate-300 text-[11px]">Origin Dock Window Ready</p>
                 </div>
 
                 {/* Destination */}
                 <div>
-                  <p className="font-display font-bold text-sm text-white">Pune Chakan MIDC Industrial Hub Phase II</p>
-                  <p className="text-emerald-300 font-bold text-[11px]">142 km (~3.8h via Expressway)</p>
+                  <p className="font-display font-bold text-sm text-white">{dropoffAddress}</p>
+                  <p className="text-emerald-300 font-bold text-[11px]">{distanceKm} km ({durationText})</p>
                 </div>
               </div>
             </section>
 
             {/* Quick Trust Badges */}
-            <section className="grid grid-cols-3 gap-3 text-center text-xs">
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col items-center justify-center space-y-1">
-                <span className="material-symbols-outlined text-[#0F6E56] text-xl">verified</span>
-                <p className="font-display font-bold text-[11px] text-slate-800">100% VAHAN</p>
-                <span className="text-[10px] text-slate-500">Government Verified</span>
+            <section className="grid grid-cols-3 gap-2.5 text-center">
+              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                <span className="material-symbols-outlined text-[#0F6E56] text-xl">security</span>
+                <p className="font-display font-bold text-[11px] text-slate-800">VAHAN Verified</p>
+                <span className="text-[10px] text-slate-500">ULIP Gov Sync</span>
               </div>
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col items-center justify-center space-y-1">
-                <span className="material-symbols-outlined text-[#2563EB] text-xl">ac_unit</span>
-                <p className="font-display font-bold text-[11px] text-slate-800">IoT Cold Chain</p>
-                <span className="text-[10px] text-slate-500">Live Temperature Log</span>
+              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
+                <span className="material-symbols-outlined text-[#2563EB] text-xl">lock</span>
+                <p className="font-display font-bold text-[11px] text-slate-800">Guaranteed Rates</p>
+                <span className="text-[10px] text-slate-500">₹0 Post-Trip Hikes</span>
               </div>
-              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs flex flex-col items-center justify-center space-y-1">
+              <div className="bg-white p-3 rounded-xl border border-slate-200 shadow-xs">
                 <span className="material-symbols-outlined text-teal-700 text-xl">contactless</span>
                 <p className="font-display font-bold text-[11px] text-slate-800">FASTag Auto-Pay</p>
                 <span className="text-[10px] text-slate-500">Zero Toll Stoppage</span>
@@ -188,7 +261,7 @@ export default function CustomerVehiclesPage() {
 
             {/* Vehicle Selection List (Grid on md/lg) */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-1 gap-3">
-              {VEHICLES.map((v) => {
+              {vehiclesList.map((v) => {
                 const isSelected = selectedId === v.id;
                 return (
                   <article
@@ -301,12 +374,22 @@ export default function CustomerVehiclesPage() {
               <div className="pt-2">
                 <button
                   onClick={handleBook}
-                  disabled={isBooking}
-                  className="w-full h-14 min-h-[56px] bg-[#0F6E56] hover:bg-[#0B5240] disabled:opacity-60 text-white rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all"
+                  disabled={isBooking || !isValidBooking}
+                  className={`w-full h-14 min-h-[56px] rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all ${
+                    isValidBooking && !isBooking
+                      ? 'bg-[#0F6E56] hover:bg-[#0B5240] text-white active:scale-[0.99] cursor-pointer'
+                      : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                  }`}
                   type="button"
                 >
                   <span className="material-symbols-outlined text-xl">verified</span>
-                  <span>{isBooking ? 'Dispatching & Saving to Database...' : `Confirm & Dispatch Truck (${selectedVehicle.fare})`}</span>
+                  <span>
+                    {isBooking
+                      ? 'Dispatching & Saving to Database...'
+                      : isValidBooking
+                      ? `Confirm & Dispatch Truck (${selectedVehicle.fare})`
+                      : 'Enter Valid Route to Confirm'}
+                  </span>
                 </button>
                 {bookingError && <p className="text-red-600 text-xs text-center font-bold mt-2">{bookingError}</p>}
               </div>

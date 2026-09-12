@@ -4,7 +4,8 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import CustomerBottomNav from "@/components/customer/CustomerBottomNav";
 import { useLanguage } from "@/context/LanguageContext";
-import { bookings } from "@/lib/api";
+import { bookings, gps, getToken } from "@/lib/api";
+import { GPSSocket } from "@/lib/gpsSocket";
 
 interface ChatMessage {
   id: string;
@@ -19,14 +20,66 @@ export default function CustomerActiveTrackingPage() {
   const { currentLanguage, setLangModalOpen, t } = useLanguage();
   const [surchargeStatus, setSurchargeStatus] = useState<"pending" | "accepted" | "declined">("pending");
   const [booking, setBooking] = useState<any>(null);
+  const [liveLocation, setLiveLocation] = useState<{
+    lat: number;
+    lng: number;
+    speed?: number | null;
+    timestamp?: string;
+  } | null>(null);
+  const [telemetryStatus, setTelemetryStatus] = useState<"connected" | "connecting" | "disconnected">("disconnected");
 
   useEffect(() => {
     const latestId = localStorage.getItem("latest_booking_id");
-    if (latestId) {
-      bookings.get(latestId)
-        .then((b: any) => setBooking(b))
-        .catch((err) => console.log(err));
-    }
+    if (!latestId) return;
+
+    bookings.get(latestId)
+      .then((b: any) => setBooking(b))
+      .catch((err) => console.log(err));
+
+    // Fetch initial latest GPS ping
+    gps.getLatestPing(latestId)
+      .then((ping) => {
+        if (ping) {
+          setLiveLocation({
+            lat: ping.lat,
+            lng: ping.lng,
+            timestamp: ping.timestamp,
+          });
+        }
+      })
+      .catch(() => {
+        // No ping yet or unauthorized
+      });
+
+    // Connect to GPS WebSocket room
+    const token = getToken();
+    if (!token) return;
+
+    const socket = new GPSSocket({
+      bookingId: latestId,
+      token,
+      onStatusChange: (status) => {
+        if (status === 'connected') setTelemetryStatus('connected');
+        else if (status === 'connecting' || status === 'reconnecting') setTelemetryStatus('connecting');
+        else setTelemetryStatus('disconnected');
+      },
+      onMessage: (data) => {
+        if (data && typeof data === 'object' && 'lat' in data && 'lng' in data) {
+          setLiveLocation({
+            lat: Number(data.lat),
+            lng: Number(data.lng),
+            speed: data.speed !== undefined ? data.speed : null,
+            timestamp: data.timestamp || new Date().toISOString(),
+          });
+        }
+      },
+    });
+
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+    };
   }, []);
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
@@ -263,16 +316,33 @@ export default function CustomerActiveTrackingPage() {
 
               <div className="absolute bottom-2.5 left-2.5 bg-slate-900/90 backdrop-blur text-white px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 shadow-md">
                 <span className="material-symbols-outlined text-[14px] text-emerald-400">speed</span>
-                <span>46 km/h • NH-48 Express</span>
+                <span>
+                  {liveLocation?.speed !== null && liveLocation?.speed !== undefined
+                    ? `${Math.max(0, Math.round(liveLocation.speed * 3.6))} km/h`
+                    : '46 km/h'} • {telemetryStatus === 'connected' ? 'Live Telematics' : 'NH-48 Express'}
+                </span>
               </div>
             </div>
 
             <div className="px-3.5 py-2.5 bg-white flex items-center justify-between text-xs">
               <div className="flex items-center space-x-2 text-slate-800 font-semibold truncate">
                 <span className="material-symbols-outlined text-[16px] text-brand flex-shrink-0">location_on</span>
-                <span className="truncate">Navigating to JNPT Gate 3, Sector 19</span>
+                <span className="truncate">
+                  {liveLocation
+                    ? `Live: ${liveLocation.lat.toFixed(4)}° N, ${liveLocation.lng.toFixed(4)}° E`
+                    : 'Navigating to JNPT Gate 3, Sector 19'}
+                </span>
               </div>
-              <span className="text-[10px] text-slate-400 flex-shrink-0 font-medium">Updated 4s ago</span>
+              <span className="text-[10px] text-slate-400 flex-shrink-0 font-medium">
+                {telemetryStatus === 'connected' ? (
+                  <span className="text-emerald-600 font-bold flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    Live GPS
+                  </span>
+                ) : (
+                  'Updated 4s ago'
+                )}
+              </span>
             </div>
           </section>
 

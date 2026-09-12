@@ -1,10 +1,16 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import CustomerBottomNav from '@/components/customer/CustomerBottomNav';
 import { useLanguage } from '@/context/LanguageContext';
+import {
+  calculateRouteEstimate,
+  calculateVehicleFares,
+  getPlaceSuggestions,
+  PlaceSuggestion,
+} from '@/lib/locationService';
 
 export default function CustomerHomePage() {
   const router = useRouter();
@@ -15,22 +21,139 @@ export default function CustomerHomePage() {
   const [destination, setDestination] = useState('Pune Industrial Cluster, Chakan Phase II');
   const [isColdChain, setIsColdChain] = useState(true);
   const [selectedVehicle, setSelectedVehicle] = useState('reefer-32');
+  const [activeDropdown, setActiveDropdown] = useState<'pickup' | 'destination' | null>(null);
+
+  const pickupContainerRef = useRef<HTMLDivElement>(null);
+  const destinationContainerRef = useRef<HTMLDivElement>(null);
+
+  // Load saved route from localStorage if available
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const savedPickup = localStorage.getItem('reload_pickup_address');
+      const savedDest = localStorage.getItem('reload_dropoff_address');
+      if (savedPickup) setPickup(savedPickup);
+      if (savedDest) setDestination(savedDest);
+    }
+  }, []);
+
+  // Compute live route distance, duration, and corridor
+  const routeEstimate = useMemo(() => {
+    return calculateRouteEstimate(pickup, destination);
+  }, [pickup, destination]);
+
+  // Compute dynamic vehicle fares based on current distance and cold-chain setting
+  const dynamicFares = useMemo(() => {
+    return calculateVehicleFares(routeEstimate.distanceKm, isColdChain);
+  }, [routeEstimate.distanceKm, isColdChain]);
+
+  // Dynamic suggestions matching user keystrokes / spelling
+  const pickupSuggestions = useMemo(() => {
+    return getPlaceSuggestions(pickup, 6);
+  }, [pickup]);
+
+  const destinationSuggestions = useMemo(() => {
+    return getPlaceSuggestions(destination, 6);
+  }, [destination]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      const target = event.target as Node;
+      if (
+        activeDropdown === 'pickup' &&
+        pickupContainerRef.current &&
+        !pickupContainerRef.current.contains(target)
+      ) {
+        setActiveDropdown(null);
+      }
+      if (
+        activeDropdown === 'destination' &&
+        destinationContainerRef.current &&
+        !destinationContainerRef.current.contains(target)
+      ) {
+        setActiveDropdown(null);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeDropdown]);
+
+  const isValidRoute = routeEstimate.isValid;
 
   const swapLocations = () => {
     const temp = pickup;
     setPickup(destination);
     setDestination(temp);
+    setActiveDropdown(null);
+  };
+
+  const renderHighlightedText = (
+    text: string,
+    query: string,
+    highlightClass = 'text-[#0F6E56] bg-emerald-100 font-bold px-0.5 rounded'
+  ) => {
+    const trimmed = query.trim();
+    if (!trimmed) return <span>{text}</span>;
+    const lowerText = text.toLowerCase();
+    const lowerQuery = trimmed.toLowerCase();
+    const idx = lowerText.indexOf(lowerQuery);
+    if (idx === -1) return <span>{text}</span>;
+    return (
+      <span>
+        {text.slice(0, idx)}
+        <span className={highlightClass}>
+          {text.slice(idx, idx + trimmed.length)}
+        </span>
+        {text.slice(idx + trimmed.length)}
+      </span>
+    );
   };
 
   const handleProceed = () => {
+    if (!isValidRoute) return;
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('reload_pickup_address', pickup);
+      localStorage.setItem('reload_dropoff_address', destination);
+      localStorage.setItem('reload_distance_km', String(routeEstimate.distanceKm));
+      localStorage.setItem('reload_duration_text', routeEstimate.durationText);
+      localStorage.setItem('reload_corridor', routeEstimate.corridor);
+      localStorage.setItem('reload_pickup_lat', String(routeEstimate.pickupCoords.lat));
+      localStorage.setItem('reload_pickup_lng', String(routeEstimate.pickupCoords.lng));
+      localStorage.setItem('reload_dropoff_lat', String(routeEstimate.dropoffCoords.lat));
+      localStorage.setItem('reload_dropoff_lng', String(routeEstimate.dropoffCoords.lng));
+      localStorage.setItem('reload_is_cold_chain', String(isColdChain));
+      localStorage.setItem('reload_selected_vehicle', selectedVehicle);
+    }
     router.push('/customer/vehicles');
   };
 
   const vehiclePricing = {
-    'reefer-32': { name: '32 Ft Multi-Axle Container', fare: '₹16,500', payload: '14 Ton Payload • GPS Lock' },
-    'bolero-14': { name: '14 Ft Bolero Pickup', fare: '₹5,200', payload: '3.5 Ton Payload • Open Body' },
-    'tata-ace': { name: 'Tata Ace Mini Truck', fare: '₹2,800', payload: '1.2 Ton Payload • City Express' },
-  }[selectedVehicle] || { name: '32 Ft Multi-Axle Container', fare: '₹16,500', payload: '14 Ton Payload' };
+    'reefer-32': {
+      name: '32 Ft Multi-Axle Container',
+      fare: isValidRoute ? dynamicFares['reefer-32']?.formattedFare || '₹16,500' : '—',
+      payload: '14 Ton Payload • GPS Lock',
+    },
+    'container-20': {
+      name: '20 Ft Closed Container',
+      fare: isValidRoute ? dynamicFares['container-20']?.formattedFare || '₹9,800' : '—',
+      payload: '8.5 Ton Payload • Dry Cargo',
+    },
+    'bolero-14': {
+      name: '14 Ft Bolero Pickup',
+      fare: isValidRoute ? dynamicFares['bolero-14']?.formattedFare || '₹5,200' : '—',
+      payload: '3.5 Ton Payload • Open Body',
+    },
+    'tata-ace': {
+      name: 'Tata Ace Mini Truck',
+      fare: isValidRoute ? dynamicFares['tata-ace']?.formattedFare || '₹2,800' : '—',
+      payload: '1.2 Ton Payload • City Express',
+    },
+  }[selectedVehicle] || {
+    name: '32 Ft Multi-Axle Container',
+    fare: isValidRoute ? dynamicFares['reefer-32']?.formattedFare || '₹16,500' : '—',
+    payload: '14 Ton Payload',
+  };
 
   return (
     <div className="bg-[#F8F9FA] font-body text-[#111827] antialiased min-h-screen selection:bg-[#E6F4F1] selection:text-[#0F6E56] flex flex-col">
@@ -118,52 +241,277 @@ export default function CustomerHomePage() {
                 <div className="absolute left-[13px] top-[18px] bottom-[28px] w-0.5 border-l-2 border-dashed border-gray-300"></div>
 
                 {/* Pickup */}
-                <div className="flex items-start justify-between relative z-10">
+                <div
+                  ref={pickupContainerRef}
+                  className={`flex items-start justify-between relative transition-all ${
+                    activeDropdown === 'pickup' ? 'z-40' : 'z-20'
+                  }`}
+                >
                   <div className="flex items-start space-x-3 w-full mr-2">
                     <div className="w-7 h-7 rounded-full bg-emerald-100 flex items-center justify-center mt-0.5 flex-shrink-0">
                       <span className="w-3 h-3 rounded-full bg-emerald-600 ring-2 ring-emerald-300"></span>
                     </div>
-                    <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
-                        PICKUP / माल उठाने की जगह
-                      </p>
-                      <input
-                        type="text"
-                        value={pickup}
-                        onChange={(e) => setPickup(e.target.value)}
-                        className="w-full bg-transparent text-xs font-bold text-gray-900 leading-snug outline-none"
-                      />
+                    <div className="flex-1 bg-slate-50 border border-slate-200 focus-within:border-[#0F6E56] focus-within:bg-white focus-within:ring-2 focus-within:ring-emerald-100 rounded-xl px-3 py-2 relative transition-all">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+                          PICKUP / माल उठाने की जगह
+                        </p>
+                        {activeDropdown === 'pickup' && (
+                          <span className="text-[9px] font-bold text-[#0F6E56] bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200/60">
+                            {pickupSuggestions.length} Hubs Found
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1.5 mt-0.5">
+                        <input
+                          type="text"
+                          value={pickup}
+                          onChange={(e) => {
+                            setPickup(e.target.value);
+                            setActiveDropdown('pickup');
+                          }}
+                          onFocus={() => setActiveDropdown('pickup')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setActiveDropdown(null);
+                          }}
+                          placeholder="Type pickup city, hub, JNPT, Okhla..."
+                          className="w-full bg-transparent text-xs font-bold text-gray-900 leading-snug outline-none placeholder:text-gray-400"
+                        />
+                        {pickup && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setPickup('');
+                              setActiveDropdown('pickup');
+                            }}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors flex-shrink-0"
+                            title="Clear pickup"
+                          >
+                            <span className="material-symbols-outlined text-sm">close</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setActiveDropdown(activeDropdown === 'pickup' ? null : 'pickup')}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors flex-shrink-0"
+                          title="Show suggested hubs"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            {activeDropdown === 'pickup' ? 'expand_less' : 'expand_more'}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Pickup Dropdown Table */}
+                      {activeDropdown === 'pickup' && (
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                          {/* Table Header */}
+                          <div className="px-3.5 py-2 bg-gradient-to-r from-emerald-50 to-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-600">
+                            <span className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-xs text-[#0F6E56]">hub</span>
+                              <span>SUGGESTED HUBS & LOGISTICS PARKS</span>
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-medium">Click to select</span>
+                          </div>
+
+                          {/* Table Rows */}
+                          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                            {pickupSuggestions.length > 0 ? (
+                              pickupSuggestions.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setPickup(item.name);
+                                    setActiveDropdown(null);
+                                  }}
+                                  className="px-3.5 py-2.5 hover:bg-[#E6F4F1]/60 cursor-pointer flex items-center justify-between gap-3 group transition-colors"
+                                >
+                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                                    <div className="w-6 h-6 rounded-md bg-emerald-100/80 text-[#0F6E56] flex items-center justify-center flex-shrink-0 group-hover:bg-[#0F6E56] group-hover:text-white transition-colors">
+                                      <span className="material-symbols-outlined text-sm">location_on</span>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-xs font-bold text-slate-900 group-hover:text-[#0F6E56] truncate">
+                                        {renderHighlightedText(item.name, pickup)}
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                                        <span className="font-semibold text-slate-700">{item.city}, {item.state}</span>
+                                        <span>•</span>
+                                        <span className="truncate">{item.subtext}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {item.corridor && (
+                                    <div className="flex-shrink-0 text-right hidden sm:block">
+                                      <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 group-hover:bg-emerald-100 group-hover:text-[#0F6E56] border border-slate-200">
+                                        {item.corridor}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-xs text-slate-500 text-center">
+                                No hubs matched "{pickup}". You can still use this as a custom address.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="px-3.5 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-500 flex items-center justify-between">
+                            <span className="truncate">Type any letters to refine suggestions</span>
+                            <span className="text-[9px] text-slate-400 flex-shrink-0">Esc to close</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 {/* Swap Button */}
-                <div className="absolute right-4 top-[48px] z-20">
+                <div className="absolute right-4 top-[48px] z-30">
                   <button
                     onClick={swapLocations}
                     className="w-7 h-7 bg-white rounded-full border border-gray-300 shadow flex items-center justify-center text-gray-600 hover:bg-gray-50 transition-transform active:rotate-180"
                     type="button"
+                    title="Swap pickup and destination"
                   >
                     <span className="material-symbols-outlined text-sm">swap_vert</span>
                   </button>
                 </div>
 
                 {/* Destination */}
-                <div className="flex items-start justify-between relative z-10">
+                <div
+                  ref={destinationContainerRef}
+                  className={`flex items-start justify-between relative transition-all ${
+                    activeDropdown === 'destination' ? 'z-40' : 'z-10'
+                  }`}
+                >
                   <div className="flex items-start space-x-3 w-full mr-2">
                     <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center mt-0.5 flex-shrink-0">
                       <span className="w-3 h-3 rounded-full bg-amber-600"></span>
                     </div>
-                    <div className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-3 py-2">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
-                        DESTINATION / पहुंचाने की जगह
-                      </p>
-                      <input
-                        type="text"
-                        value={destination}
-                        onChange={(e) => setDestination(e.target.value)}
-                        className="w-full bg-transparent text-xs font-bold text-gray-900 leading-snug outline-none"
-                      />
+                    <div className="flex-1 bg-slate-50 border border-slate-200 focus-within:border-amber-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-100 rounded-xl px-3 py-2 relative transition-all">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wide">
+                          DESTINATION / पहुँचाने की जगह
+                        </p>
+                        {activeDropdown === 'destination' && (
+                          <span className="text-[9px] font-bold text-amber-800 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200/60">
+                            {destinationSuggestions.length} Hubs Found
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center space-x-1.5 mt-0.5">
+                        <input
+                          type="text"
+                          value={destination}
+                          onChange={(e) => {
+                            setDestination(e.target.value);
+                            setActiveDropdown('destination');
+                          }}
+                          onFocus={() => setActiveDropdown('destination')}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Escape') setActiveDropdown(null);
+                          }}
+                          placeholder="Type destination city, warehouse, Chakan, Peenya..."
+                          className="w-full bg-transparent text-xs font-bold text-gray-900 leading-snug outline-none placeholder:text-gray-400"
+                        />
+                        {destination && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDestination('');
+                              setActiveDropdown('destination');
+                            }}
+                            className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors flex-shrink-0"
+                            title="Clear destination"
+                          >
+                            <span className="material-symbols-outlined text-sm">close</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setActiveDropdown(activeDropdown === 'destination' ? null : 'destination')}
+                          className="text-slate-400 hover:text-slate-600 p-0.5 rounded transition-colors flex-shrink-0"
+                          title="Show suggested hubs"
+                        >
+                          <span className="material-symbols-outlined text-sm">
+                            {activeDropdown === 'destination' ? 'expand_less' : 'expand_more'}
+                          </span>
+                        </button>
+                      </div>
+
+                      {/* Destination Dropdown Table */}
+                      {activeDropdown === 'destination' && (
+                        <div className="absolute left-0 right-0 top-[calc(100%+6px)] bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+                          {/* Table Header */}
+                          <div className="px-3.5 py-2 bg-gradient-to-r from-amber-50 to-slate-50 border-b border-slate-100 flex items-center justify-between text-[10px] font-bold text-slate-600">
+                            <span className="flex items-center gap-1.5">
+                              <span className="material-symbols-outlined text-xs text-amber-600">navigation</span>
+                              <span>SUGGESTED DESTINATIONS & WAREHOUSES</span>
+                            </span>
+                            <span className="text-[9px] text-slate-400 font-medium">Click to select</span>
+                          </div>
+
+                          {/* Table Rows */}
+                          <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+                            {destinationSuggestions.length > 0 ? (
+                              destinationSuggestions.map((item, idx) => (
+                                <div
+                                  key={idx}
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    setDestination(item.name);
+                                    setActiveDropdown(null);
+                                  }}
+                                  className="px-3.5 py-2.5 hover:bg-amber-50/70 cursor-pointer flex items-center justify-between gap-3 group transition-colors"
+                                >
+                                  <div className="flex items-center space-x-2.5 min-w-0 flex-1">
+                                    <div className="w-6 h-6 rounded-md bg-amber-100/80 text-amber-700 flex items-center justify-center flex-shrink-0 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                                      <span className="material-symbols-outlined text-sm">flag</span>
+                                    </div>
+                                    <div className="min-w-0 flex-1">
+                                      <div className="text-xs font-bold text-slate-900 group-hover:text-amber-800 truncate">
+                                        {renderHighlightedText(
+                                          item.name,
+                                          destination,
+                                          'text-amber-800 bg-amber-100 font-bold px-0.5 rounded'
+                                        )}
+                                      </div>
+                                      <div className="text-[10px] text-slate-500 truncate flex items-center gap-1.5 mt-0.5">
+                                        <span className="font-semibold text-slate-700">{item.city}, {item.state}</span>
+                                        <span>•</span>
+                                        <span className="truncate">{item.subtext}</span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  {item.corridor && (
+                                    <div className="flex-shrink-0 text-right hidden sm:block">
+                                      <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-600 group-hover:bg-amber-100 group-hover:text-amber-800 border border-slate-200">
+                                        {item.corridor}
+                                      </span>
+                                    </div>
+                                  )}
+                                </div>
+                              ))
+                            ) : (
+                              <div className="px-4 py-3 text-xs text-slate-500 text-center">
+                                No hubs matched "{destination}". You can still use this as a custom address.
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Footer */}
+                          <div className="px-3.5 py-1.5 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-500 flex items-center justify-between">
+                            <span className="truncate">Type any letters to refine suggestions</span>
+                            <span className="text-[9px] text-slate-400 flex-shrink-0">Esc to close</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -174,10 +522,17 @@ export default function CustomerHomePage() {
                   <span className="material-symbols-outlined text-sm">calendar_today</span>
                   <span>Today, Instant Highway Dispatch</span>
                 </div>
-                <div className="flex items-center space-x-1.5 text-emerald-800 font-bold bg-[#E6F4F1] px-3 py-1.5 rounded-lg border border-emerald-200">
-                  <span className="material-symbols-outlined text-sm text-[#0F6E56]">check_circle</span>
-                  <span>142 km (~3.8 hrs via Expressway)</span>
-                </div>
+                {isValidRoute ? (
+                  <div className="flex items-center space-x-1.5 text-emerald-800 font-bold bg-[#E6F4F1] px-3 py-1.5 rounded-lg border border-emerald-200">
+                    <span className="material-symbols-outlined text-sm text-[#0F6E56]">check_circle</span>
+                    <span>{routeEstimate.distanceKm} km ({routeEstimate.durationText})</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center space-x-1.5 text-amber-800 font-semibold bg-amber-50 px-3 py-1.5 rounded-lg border border-amber-200">
+                    <span className="material-symbols-outlined text-sm text-amber-600">info</span>
+                    <span>{routeEstimate.durationText}</span>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -264,7 +619,9 @@ export default function CustomerHomePage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="font-display text-base font-extrabold text-[#0F6E56]">₹16,500</span>
+                    <span className="font-display text-base font-extrabold text-[#0F6E56]">
+                      {dynamicFares['reefer-32']?.formattedFare || '₹16,500'}
+                    </span>
                     <span className="text-[10px] text-gray-400 block">All Incl. Fare</span>
                   </div>
                 </div>
@@ -292,7 +649,9 @@ export default function CustomerHomePage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="font-display text-base font-extrabold text-[#0F6E56]">₹5,200</span>
+                    <span className="font-display text-base font-extrabold text-[#0F6E56]">
+                      {dynamicFares['bolero-14']?.formattedFare || '₹5,200'}
+                    </span>
                     <span className="text-[10px] text-gray-400 block">All Incl. Fare</span>
                   </div>
                 </div>
@@ -320,7 +679,9 @@ export default function CustomerHomePage() {
                     </div>
                   </div>
                   <div className="text-right">
-                    <span className="font-display text-base font-extrabold text-[#0F6E56]">₹2,800</span>
+                    <span className="font-display text-base font-extrabold text-[#0F6E56]">
+                      {dynamicFares['tata-ace']?.formattedFare || '₹2,800'}
+                    </span>
                     <span className="text-[10px] text-gray-400 block">All Incl. Fare</span>
                   </div>
                 </div>
@@ -334,9 +695,9 @@ export default function CustomerHomePage() {
             <div className="bg-gradient-to-br from-[#0F172A] to-[#1E293B] rounded-2xl p-5 text-white shadow-md">
               <div className="flex items-center justify-between pb-3 border-b border-white/10">
                 <div className="flex items-center gap-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span className={`h-2.5 w-2.5 rounded-full ${isValidRoute ? 'bg-emerald-400 animate-ping' : 'bg-amber-400'}`}></span>
                   <span className="font-display text-xs font-bold uppercase tracking-wider text-emerald-300">
-                    NH-48 Corridor Active
+                    {isValidRoute ? `${routeEstimate.corridor} Active` : 'Route Incomplete'}
                   </span>
                 </div>
                 <span className="text-[11px] font-mono text-slate-300">E-Way Bill Auto-Sync</span>
@@ -344,15 +705,21 @@ export default function CustomerHomePage() {
               <div className="pt-3 space-y-2">
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300">Origin Dock</span>
-                  <span className="font-bold text-white">Mumbai Port Nhava Sheva Gate 2</span>
+                  <span className="font-bold text-white truncate max-w-[210px] text-right">
+                    {pickup.trim() || '—'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300">Destination</span>
-                  <span className="font-bold text-white">Pune Chakan Phase II</span>
+                  <span className="font-bold text-white truncate max-w-[210px] text-right">
+                    {destination.trim() || '—'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between text-xs">
                   <span className="text-slate-300">Est. Transit Time</span>
-                  <span className="font-bold text-emerald-300">3 hrs 45 mins</span>
+                  <span className="font-bold text-emerald-300">
+                    {isValidRoute ? routeEstimate.durationText : '—'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -377,15 +744,21 @@ export default function CustomerHomePage() {
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-slate-600">Base Freight Mileage</span>
-                  <span className="font-semibold text-slate-800">Included</span>
+                  <span className="font-semibold text-slate-800">
+                    {isValidRoute ? 'Included' : '—'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-slate-600">FASTag &amp; Highway Tolls</span>
-                  <span className="text-emerald-700 font-semibold">Pre-paid (₹0 Gate Stoppage)</span>
+                  <span className="text-emerald-700 font-semibold">
+                    {isValidRoute ? 'Pre-paid (₹0 Gate Stoppage)' : '—'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between pt-2">
                   <span className="text-slate-600">Cold Chain IoT Monitoring</span>
-                  <span className="text-blue-700 font-semibold">Active Telematics</span>
+                  <span className="text-blue-700 font-semibold">
+                    {isValidRoute ? 'Active Telematics' : '—'}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between pt-3 text-sm font-extrabold text-slate-900">
                   <span>Guaranteed Total Locked</span>
@@ -396,10 +769,19 @@ export default function CustomerHomePage() {
               {/* Primary Action Button */}
               <button
                 onClick={handleProceed}
-                className="w-full h-14 min-h-[56px] bg-[#0F6E56] hover:bg-[#0B5240] text-white rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] transition-all"
+                disabled={!isValidRoute}
+                className={`w-full h-14 min-h-[56px] rounded-xl font-display text-sm font-extrabold flex items-center justify-center gap-2 shadow-lg transition-all ${
+                  isValidRoute
+                    ? 'bg-[#0F6E56] hover:bg-[#0B5240] text-white active:scale-[0.99] cursor-pointer'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed opacity-60 shadow-none'
+                }`}
                 type="button"
               >
-                <span>Dispatch Vehicle • गाड़ी बुक करें</span>
+                <span>
+                  {isValidRoute
+                    ? 'Dispatch Vehicle • गाड़ी बुक करें'
+                    : 'Enter Both Locations to Dispatch • दोनों स्थान दर्ज करें'}
+                </span>
                 <span className="material-symbols-outlined text-xl">arrow_forward</span>
               </button>
 

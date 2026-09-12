@@ -81,12 +81,50 @@ def create_gps_ping(
     return new_ping
 
 
-@ws_router.websocket("/ws/bookings/{booking_id}/tracking")
-async def gps_tracking_websocket(
+@router.get("/{booking_id}/gps-pings/latest", response_model=GPSPingResponse)
+def get_latest_gps_ping(
+    booking_id: uuid.UUID,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    # 1. Fetch booking to verify existence and authorization
+    booking = db.execute(select(Booking).where(Booking.id == booking_id)).scalar_one_or_none()
+    if not booking:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Booking not found"
+        )
+
+    # 2. Authorization check: customer, driver or company_admin
+    user_role = current_user.role.value if hasattr(current_user.role, "value") else str(current_user.role)
+    if user_role != "company_admin" and current_user.id not in [booking.customer_id, booking.driver_id]:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access GPS telemetry for this booking"
+        )
+
+    # 3. Retrieve the latest GPS ping
+    stmt = (
+        select(GPSPing)
+        .where(GPSPing.booking_id == booking_id)
+        .order_by(GPSPing.timestamp.desc())
+        .limit(1)
+    )
+    latest_ping = db.execute(stmt).scalar_one_or_none()
+    if not latest_ping:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="No GPS pings found for this booking"
+        )
+
+    return latest_ping
+
+
+async def _handle_gps_websocket(
     websocket: WebSocket,
     booking_id: uuid.UUID,
-    token: Optional[str] = Query(None),
-    db: Session = Depends(get_db)
+    token: Optional[str],
+    db: Session
 ):
     if not token:
         await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
@@ -134,14 +172,38 @@ async def gps_tracking_websocket(
                     lat = float(coords["lat"])
                     lng = float(coords["lng"])
                 except Exception:
+                    await websocket.send_json({"error": "Invalid payload format. Must be JSON with 'lat' and 'lng'"})
                     continue
+
+                # Validate coordinate ranges (-90 <= lat <= 90, -180 <= lng <= 180)
+                if not (-90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0):
+                    await websocket.send_json({"error": f"Coordinates out of range: lat={lat}, lng={lng}"})
+                    continue
+
+                # Parse timestamp if provided
+                ping_ts = datetime.now(timezone.utc)
+                raw_ts = coords.get("timestamp")
+                if raw_ts:
+                    try:
+                        if isinstance(raw_ts, (int, float)):
+                            if raw_ts > 1e11:
+                                raw_ts = raw_ts / 1000.0
+                            ping_ts = datetime.fromtimestamp(raw_ts, tz=timezone.utc)
+                        elif isinstance(raw_ts, str):
+                            ping_ts = datetime.fromisoformat(raw_ts.replace("Z", "+00:00"))
+                    except Exception:
+                        ping_ts = datetime.now(timezone.utc)
+
+                speed = coords.get("speed")
+                heading = coords.get("heading")
+                accuracy = coords.get("accuracy")
 
                 ping = GPSPing(
                     booking_id=booking_id,
                     driver_id=user.id,
                     lat=lat,
                     lng=lng,
-                    timestamp=datetime.now(timezone.utc)
+                    timestamp=ping_ts
                 )
                 db.add(ping)
                 db.commit()
@@ -150,6 +212,9 @@ async def gps_tracking_websocket(
                 broadcast_data = {
                     "lat": ping.lat,
                     "lng": ping.lng,
+                    "speed": speed,
+                    "heading": heading,
+                    "accuracy": accuracy,
                     "timestamp": ping.timestamp.isoformat(),
                     "driver_id": str(user.id),
                     "booking_id": str(booking_id)
@@ -160,3 +225,23 @@ async def gps_tracking_websocket(
                 pass
     except WebSocketDisconnect:
         manager.disconnect(booking_id, websocket, room_type="gps")
+
+
+@ws_router.websocket("/ws/bookings/{booking_id}/tracking")
+async def legacy_gps_tracking_websocket(
+    websocket: WebSocket,
+    booking_id: uuid.UUID,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    await _handle_gps_websocket(websocket, booking_id, token, db)
+
+
+@ws_router.websocket("/api/v1/ws/gps/{booking_id}")
+async def modern_gps_tracking_websocket(
+    websocket: WebSocket,
+    booking_id: uuid.UUID,
+    token: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    await _handle_gps_websocket(websocket, booking_id, token, db)

@@ -57,13 +57,14 @@ export function getStoredUser(): Record<string, unknown> | null {
 
 interface RequestOptions extends RequestInit {
   auth?: boolean; // attach Bearer token from localStorage
+  timeoutMs?: number;
 }
 
 export async function apiFetch<T = unknown>(
   path: string,
   options: RequestOptions = {}
 ): Promise<T> {
-  const { auth = true, headers: extraHeaders = {}, ...rest } = options;
+  const { auth = true, timeoutMs = 8000, headers: extraHeaders = {}, signal: externalSignal, ...rest } = options;
 
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -75,22 +76,41 @@ export async function apiFetch<T = unknown>(
     if (token) headers["Authorization"] = `Bearer ${token}`;
   }
 
-  const res = await fetch(`${API_BASE}${path}`, { headers, ...rest });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  if (!res.ok) {
-    const errorBody = await res.json().catch(() => ({ detail: res.statusText }));
-    throw new Error(errorBody.detail || `API error ${res.status}`);
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      headers,
+      signal: externalSignal || controller.signal,
+      ...rest,
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(errorBody.detail || `API error ${res.status}`);
+    }
+
+    // 204 No Content → return null
+    if (res.status === 204) return null as T;
+    return res.json() as Promise<T>;
+  } catch (err: unknown) {
+    if (
+      (err instanceof DOMException && err.name === "AbortError") ||
+      (err instanceof Error && (err.message.includes("aborted") || err.name === "AbortError"))
+    ) {
+      throw new Error(`Server request timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-
-  // 204 No Content → return null
-  if (res.status === 204) return null as T;
-  return res.json() as Promise<T>;
 }
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
 export interface SignupPayload {
-  role: "customer" | "driver" | "admin";
+  role: "customer" | "driver" | "admin" | "company_admin";
   name: string;
   phone: string;
   email?: string;
@@ -176,6 +196,10 @@ export const gps = {
     }),
   getHistory: (bookingId: string) =>
     apiFetch(`/api/v1/gps/booking/${bookingId}`),
+  getLatestPing: (bookingId: string) =>
+    apiFetch<{ id: string; booking_id: string; driver_id: string; lat: number; lng: number; timestamp: string }>(
+      `/api/v1/bookings/${bookingId}/gps-pings/latest`
+    ),
 };
 
 // ─── Payments ─────────────────────────────────────────────────────────────────

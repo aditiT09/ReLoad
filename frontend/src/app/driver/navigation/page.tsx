@@ -1,10 +1,26 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useLanguage } from '@/context/LanguageContext';
 import DriverBottomNav from '@/components/driver/DriverBottomNav';
+import { useDriverLocation } from '@/hooks/useDriverLocation';
+import { GPSSocket, GPSSocketStatus } from '@/lib/gpsSocket';
+import { getToken } from '@/lib/api';
+
+function calculateDistanceMeters(lat1: number, lon1: number, lat2: number, lon2: number): number {
+  const R = 6371e3;
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
 
 export default function DriverNavigationPage() {
   const router = useRouter();
@@ -14,6 +30,78 @@ export default function DriverNavigationPage() {
   const [messages, setMessages] = useState<string[]>([]);
   const [isSOSOpen, setIsSOSOpen] = useState(false);
   const [showArrivalToast, setShowArrivalToast] = useState(false);
+
+  // Live GPS Telemetry
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const { position, error: locationError, isTracking, permissionDenied } = useDriverLocation(true);
+  const [socketStatus, setSocketStatus] = useState<GPSSocketStatus>('disconnected');
+  const [pingsSentCount, setPingsSentCount] = useState<number>(0);
+  const lastSentRef = useRef<{ time: number; lat: number; lng: number } | null>(null);
+  const socketRef = useRef<GPSSocket | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const paramId = params.get('booking_id');
+      const storedId = localStorage.getItem('latest_booking_id');
+      setBookingId(paramId || storedId || '1c81ea67-2c3d-448a-b846-b65fa74fee9b');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!bookingId) return;
+    const token = getToken();
+    if (!token) return;
+
+    const socket = new GPSSocket({
+      bookingId,
+      token,
+      onStatusChange: (status) => setSocketStatus(status),
+      onError: (err) => console.warn('[GPS Socket Error]', err),
+    });
+    socketRef.current = socket;
+    socket.connect();
+
+    return () => {
+      socket.disconnect();
+      socketRef.current = null;
+    };
+  }, [bookingId]);
+
+  useEffect(() => {
+    if (!position || !socketRef.current || socketStatus !== 'connected') return;
+
+    const now = Date.now();
+    const last = lastSentRef.current;
+
+    let shouldSend = false;
+    if (!last) {
+      shouldSend = true;
+    } else {
+      const elapsed = now - last.time;
+      if (elapsed >= 3000) {
+        const dist = calculateDistanceMeters(last.lat, last.lng, position.lat, position.lng);
+        if (dist >= 5 || elapsed >= 30000) {
+          shouldSend = true;
+        }
+      }
+    }
+
+    if (shouldSend) {
+      const sent = socketRef.current.sendPing({
+        lat: position.lat,
+        lng: position.lng,
+        speed: position.speed,
+        heading: position.heading,
+        accuracy: position.accuracy,
+        timestamp: position.timestamp,
+      });
+      if (sent) {
+        lastSentRef.current = { time: now, lat: position.lat, lng: position.lng };
+        setPingsSentCount((c) => c + 1);
+      }
+    }
+  }, [position, socketStatus]);
 
   const sendQuickReply = (text: string) => {
     setMessages((prev) => [...prev, text]);
@@ -25,6 +113,11 @@ export default function DriverNavigationPage() {
       router.push('/driver/handoff');
     }, 1200);
   };
+
+  const currentSpeedKmH =
+    position?.speed !== null && position?.speed !== undefined
+      ? Math.max(0, Math.round(position.speed * 3.6))
+      : null;
 
   return (
     <div className="bg-[#F8F9FA] font-body text-[#111c29] flex flex-col min-h-screen antialiased">
@@ -81,54 +174,84 @@ export default function DriverNavigationPage() {
       </header>
 
       <main className="flex-1 flex flex-col relative w-full max-w-7xl mx-auto pt-20 pb-24 px-4 sm:px-6 lg:px-8 select-none">
+        {/* Permission Denied Alert Banner */}
+        {permissionDenied && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-2xl text-amber-900 flex items-start gap-3 shadow-xs">
+            <span className="material-symbols-outlined text-amber-600 text-2xl shrink-0 mt-0.5">location_disabled</span>
+            <div className="flex-1 text-xs">
+              <strong className="font-display font-bold text-sm text-amber-950 block mb-0.5">Location Access Denied (स्थान अनुमति अस्वीकृत)</strong>
+              <p className="text-amber-800 leading-relaxed">
+                Real-time GPS tracking requires device location permissions. Please click the site permissions icon in your browser address bar and select <strong>&quot;Allow&quot;</strong> for Location, then refresh the page.
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* WebSocket Status Warning Banner */}
+        {socketStatus === 'reconnecting' && (
+          <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-900 flex items-center gap-2.5 shadow-xs">
+            <span className="material-symbols-outlined text-blue-600 text-lg animate-spin">sync</span>
+            <span className="text-xs font-medium">GPS stream disconnected. Reconnecting with exponential backoff...</span>
+          </div>
+        )}
+
         {/* Responsive Two-Column Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* Left Column: Navigation HUD & Map */}
           <div className="lg:col-span-8 flex flex-col">
             {/* HUD Navigation Card */}
             <section className="w-full bg-[#0F172A] text-white rounded-2xl shadow-lg p-4 flex flex-col gap-3 mb-3 relative overflow-hidden">
-          {/* Progress Micro-line */}
-          <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-800">
-            <div className="h-full bg-emerald-400 w-4/5"></div>
-          </div>
-
-          <div className="flex items-center gap-3 pt-1">
-            <div className="w-13 h-13 p-3 rounded-xl bg-[#0F6E56] flex items-center justify-center text-white shadow-md shrink-0">
-              <span className="material-symbols-outlined text-3xl font-bold">turn_right</span>
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="font-display text-[11px] text-emerald-400 font-bold uppercase tracking-wider">
-                In 400 meters
-              </span>
-              <h2 className="font-display text-xl text-white font-extrabold tracking-tight truncate">
-                Take Exit 12B
-              </h2>
-              <p className="text-xs text-slate-300 truncate">Towards Chakan MIDC Industrial Corridor</p>
-            </div>
-          </div>
-
-          {/* Telemetry & Velocity Strip */}
-          <div className="flex items-center justify-between pt-1 border-t border-slate-800">
-            <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-lg">
-              <span className="w-5 h-5 rounded-full bg-emerald-400/20 text-emerald-300 font-display text-[11px] flex items-center justify-center font-bold">
-                60
-              </span>
-              <div className="flex flex-col">
-                <span className="font-display text-xs text-white font-bold leading-none">
-                  48 <span className="font-normal text-slate-400 text-[10px]">km/h</span>
-                </span>
-                <span className="text-[9px] text-slate-400">Speed Limit 60</span>
+              {/* Progress Micro-line */}
+              <div className="absolute top-0 left-0 right-0 h-1.5 bg-slate-800">
+                <div className="h-full bg-emerald-400 w-4/5"></div>
               </div>
-            </div>
 
-            <div className="text-right">
-              <div className="font-display text-lg text-emerald-400 font-extrabold leading-none">
-                14 <span className="text-xs text-white font-normal">mins</span>
+              <div className="flex items-center gap-3 pt-1">
+                <div className="w-13 h-13 p-3 rounded-xl bg-[#0F6E56] flex items-center justify-center text-white shadow-md shrink-0">
+                  <span className="material-symbols-outlined text-3xl font-bold">turn_right</span>
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="font-display text-[11px] text-emerald-400 font-bold uppercase tracking-wider">
+                      In 400 meters
+                    </span>
+                    <span className="flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full bg-slate-800/90 text-slate-300">
+                      <span className={`w-1.5 h-1.5 rounded-full ${socketStatus === 'connected' ? 'bg-emerald-400 animate-pulse' : socketStatus === 'reconnecting' ? 'bg-amber-400 animate-spin' : 'bg-rose-400'}`}></span>
+                      {socketStatus === 'connected' ? `Live (${pingsSentCount} pings)` : socketStatus === 'reconnecting' ? 'Reconnecting...' : 'Offline'}
+                    </span>
+                  </div>
+                  <h2 className="font-display text-xl text-white font-extrabold tracking-tight truncate">
+                    Take Exit 12B
+                  </h2>
+                  <p className="text-xs text-slate-300 truncate">Towards Chakan MIDC Industrial Corridor</p>
+                </div>
               </div>
-              <div className="text-[11px] text-slate-300 mt-0.5">1.8 km to Pickup Dock</div>
-            </div>
-          </div>
-        </section>
+
+              {/* Telemetry & Velocity Strip */}
+              <div className="flex items-center justify-between pt-1 border-t border-slate-800">
+                <div className="flex items-center gap-2 bg-slate-800/80 px-2.5 py-1 rounded-lg">
+                  <span className="w-5 h-5 rounded-full bg-emerald-400/20 text-emerald-300 font-display text-[11px] flex items-center justify-center font-bold">
+                    60
+                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-display text-xs text-white font-bold leading-none">
+                      {currentSpeedKmH !== null ? currentSpeedKmH : 48}{' '}
+                      <span className="font-normal text-slate-400 text-[10px]">km/h</span>
+                    </span>
+                    <span className="text-[9px] text-slate-400">
+                      {currentSpeedKmH !== null ? 'Real GPS Speed' : 'Speed Limit 60'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <div className="font-display text-lg text-emerald-400 font-extrabold leading-none">
+                    14 <span className="text-xs text-white font-normal">mins</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 mt-0.5">1.8 km to Pickup Dock</div>
+                </div>
+              </div>
+            </section>
 
         {/* Map Viewport Container */}
         <section className="relative w-full h-80 rounded-2xl overflow-hidden shadow-md bg-[#0b1322] border border-slate-800">
@@ -164,7 +287,7 @@ export default function DriverNavigationPage() {
           <div className="absolute top-3 left-3 bg-[#0F172A]/90 backdrop-blur-md px-3 py-1.5 rounded-lg flex items-center gap-2 shadow-md border border-slate-700">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
             <span className="font-display text-xs text-white tracking-wide font-bold">
-              NH-48 EXPRESSWAY • KM 114
+              {position ? `${position.lat.toFixed(4)}° N, ${position.lng.toFixed(4)}° E` : 'NH-48 EXPRESSWAY • KM 114'}
             </span>
           </div>
 
