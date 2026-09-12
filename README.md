@@ -76,6 +76,43 @@ The flow is built around 3 specialized intelligence systems and an escrow safety
 
 ---
 
+## Recent Feature Additions
+
+**Customer Location Autocomplete & Corridor Dropdown**
+- An intelligent autocomplete dropdown for pickup and drop-off locations in the Shipper booking flow (`/shipper/new-booking`).
+- Performs live fuzzy matching across major Indian logistics corridors (Delhi NCR, Mumbai-JNPT, Bengaluru, Chennai, Pune, Ahmedabad, Kolkata, Hyderabad, etc.) as the user types.
+- **Impact:** Eliminates typos, standardizes corridor addresses, and ensures accurate distance/fare calculation.
+
+**Driver Phone OTP Gate & 2-Step KYC Verification**
+- Fixed an issue where driver registration was failing OTP verification or allowing users to bypass verification directly to document upload.
+- Now a strict 2-step onboarding funnel:
+  - **Step 1 (OTP Verification):** Driver enters mobile number and a demo OTP (`123456`) with a countdown timer and resend capability. Step 2 only unlocks after successful verification.
+  - **Step 2 (KYC & Documents):** Driver uploads Aadhaar, Commercial Driving License, and Vehicle RC, and specifies truck type/capacity.
+- **Impact:** Prevents unverified driver accounts, secures driver sign-in, and guarantees verified trust credentials on the platform.
+
+**Driver Multi-Load Marketplace (Fair Load Selection)**
+- Previously, drivers were only shown a single fixed load, limiting their choice and earning potential.
+- A Multi-Load Opportunity Pool now lives on the Driver Dashboard (`/driver/find-loads`):
+  - Lists all active shipper shipments available along or near the driver's return route.
+  - Displays payout fare, cargo type, total weight, pickup/drop locations, and deadhead km saved.
+  - Lets drivers compare offers and choose the most profitable load for their schedule and vehicle capacity.
+
+**Real-Time Hardware GPS & WebSocket Telemetry**
+- `useDriverLocation.ts` — React hook using the browser's HTML5 Geolocation API, with graceful fallback simulation along active Indian highway routes.
+- `gpsSocket.ts` & `locationService.ts` — client-side WebSocket manager for bidirectional streaming of real-time lat/long, heading, speed, and timestamps.
+- `backend/tests/test_gps_websocket.py` — automated test suite for backend GPS ingestion.
+- **Impact:** Live truck positioning on shipper tracking screens without manual refreshes.
+
+---
+
+## Deployment & Production Resilience
+
+- Backend is live on Render at `reload-backend-np1r.onrender.com`.
+- Frontend API clients include graceful fallbacks to prevent UI crashes during Render free-tier cold starts.
+- Production build verified via `npm run build`, generating 27 static routes.
+
+---
+
 ## Architecture
 
 ```
@@ -116,7 +153,7 @@ The flow is built around 3 specialized intelligence systems and an escrow safety
 - TypeScript 5.7.3
 - Tailwind CSS 3.4.17, PostCSS & Autoprefixer, `tailwind-merge` & `clsx`
 - Google Material Symbols Outlined, Lucide React 0.475.0
-- Web Speech API (`window.speechSynthesis`) — multi-lingual audio guidance in Hindi, Marathi, Gujarati, Punjabi, English
+- Web Speech API (`window.speechSynthesis`) — multi-lingual audio guidance in Hindi, Marathi, Gujarati, Punjabi, English *(a later tech-stack slide lists Tamil, Telugu instead of Gujarati, Punjabi — confirm the actual 5-language set before submission)*
 - React Context API (`LanguageContext.tsx`) for i18n + RTL/LTR script rendering
 - Custom typed HTTP client (`src/lib/api.ts`) with Bearer token authentication
 
@@ -127,9 +164,10 @@ The flow is built around 3 specialized intelligence systems and an escrow safety
 - Pydantic 2.13.5 & pydantic-core 2.46.5, pydantic-settings 2.15.0
 - WebSockets 17.1 — live GPS telemetry & fleet pinging
 - python-jose 3.5.0 (JWT, HS256), passlib 1.7.4 + bcrypt 4.0.1, cryptography 50.0.1 & rsa 4.9.1
+- Deployed on Render (`reload-backend-np1r.onrender.com`)
 
 ### Database & ORM
-- PostgreSQL, cloud-hosted via Supabase
+- PostgreSQL, cloud-hosted via Supabase, PostGIS-ready for spatial coordinates
 - AWS Transaction Pooler (port 5432, ap-southeast-2)
 - psycopg2-binary 2.9.12
 - SQLAlchemy 2.0.52 (declarative 2.x, async/sync sessions)
@@ -221,7 +259,8 @@ ReLoad/
 │   │           └── thresholds.py      # Geofence, speed, night-driving rules
 │   └── tests/                         # Test suite (730+ LOC)
 │       ├── test_person4_flows.py      # Escrow, surcharges, handoff, WS tests
-│       └── test_trust_module.py       # Trust scores & document expiry tests
+│       ├── test_trust_module.py       # Trust scores & document expiry tests
+│       └── test_gps_websocket.py      # Automated backend GPS ingestion tests
 └── frontend/
     ├── package.json                   # Next.js 14, Tailwind CSS, Lucide
     ├── .env.local                     # NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -229,7 +268,11 @@ ReLoad/
     ├── tailwind.config.ts
     └── src/
         ├── lib/
-        │   └── api.ts                 # Typed fetch client connecting to FastAPI
+        │   ├── api.ts                 # Typed fetch client connecting to FastAPI
+        │   ├── gpsSocket.ts           # Client-side WebSocket manager for GPS streaming
+        │   └── locationService.ts     # Real-time lat/long, heading, speed, timestamp handling
+        ├── hooks/
+        │   └── useDriverLocation.ts   # HTML5 Geolocation API hook w/ highway-route fallback
         ├── context/
         │   └── LanguageContext.tsx    # 5-dialect i18n + Web Speech audio assistance
         ├── components/
@@ -240,10 +283,12 @@ ReLoad/
         └── app/                       # Next.js App Router
             ├── page.tsx               # Splash / entry screen
             ├── landing/page.tsx       # 3-persona selection (Shipper, Driver, Admin)
-            ├── customer/              # Shipper Portal
-            │   └── login/, home/, vehicles/, tracking/, bookings/, profile/, receipt/, support/
+            ├── customer/              # Shipper Portal — NOTE: newer feature notes reference
+            │   │                      # this portal's routes under /shipper/... (e.g. /shipper/new-booking);
+            │   │                      # confirm actual folder name (customer/ vs shipper/) before submission
+            │   └── login/, home/, new-booking/, vehicles/, tracking/, bookings/, profile/, receipt/, support/
             ├── driver/                # Driver Sarathi Portal
-            │   └── login/, home/, navigation/, handoff/, forecast/, profile/
+            │   └── login/, home/, find-loads/, navigation/, handoff/, forecast/, profile/
             └── admin/                 # Operational Dispatch Console
                 └── login/, dashboard/, drivers/, reports/, surcharges/, bookings/[id]/
 ```
@@ -287,6 +332,7 @@ VERIFICATION_DUE_MONTHS=6
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
+> ⚠️ Never commit real Supabase credentials or JWT secrets to `.env` — use `.env.example` as the template and keep the filled `.env` gitignored.
 
 ### Setup Commands
 
