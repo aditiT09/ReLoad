@@ -287,7 +287,6 @@ VERIFICATION_DUE_MONTHS=6
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
 
-> ⚠️ Never commit real Supabase credentials or JWT secrets to `.env` — use `.env.example` as the template and keep the filled `.env` gitignored.
 
 ### Setup Commands
 
