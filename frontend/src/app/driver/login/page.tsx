@@ -37,8 +37,8 @@ export default function DriverLoginPage() {
   }, [otpSent, isOtpVerified, timer]);
 
   const setupDriverSession = (fullPhone: string, nameVal?: string, backendToken?: string) => {
-    const cleanDigits = fullPhone.replace(/\D/g, '') || '9876543210';
-    const demoSub = `driver-${cleanDigits}`;
+    const cleanDigits = (fullPhone.replace(/\D/g, '') || '9876543210').slice(-10).padStart(12, '0');
+    const demoSub = `00000000-0000-4000-8000-${cleanDigits}`;
     const displayName = nameVal?.trim() || `Driver ${cleanDigits.slice(-4)}`;
 
     const sessionToken =
@@ -624,7 +624,7 @@ export default function DriverLoginPage() {
                   <img
                     className="w-16 h-11 rounded object-cover shadow-xs border border-slate-200"
                     alt="Driving License Thumbnail"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuBL7656VOQnKeWVgxlpgFzBdf2E70v8JK4nEJajxgbZTqeLiKqLrvsHpWfbudAKDNxI3kA9I4bH0QQ9ZVkPgr4Wz5q0FzQ0jhr_XXC8kGtBpWu8uUFJvmiurIJxoyi05sOXiyypac-1eO49lgEJoSNYwxG630KxwGXclMDEBvQjfxlg6Or20JwGL2cl_zGgI1-6oLh_dZ8kc62SHYkjwGHjGAVDi6AKcAeAcIPhRkF7ICWaxeD6sYEWBw"
+                    src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?auto=format&fit=crop&w=200&q=80"
                   />
                   <div className="flex flex-col text-[11px]">
                     <span className="font-display font-bold text-[#111c29]">Heavy Goods Vehicle (HGV)</span>
@@ -659,7 +659,7 @@ export default function DriverLoginPage() {
                   <img
                     className="w-16 h-11 rounded object-cover shadow-xs border border-slate-200"
                     alt="RC Book Thumbnail"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuDZ7tx7wF5MkKDyCn6LK8FMyv7wxQxCDu2K-nm1UEQEEcZjgzUt-CUnLXJ-BNRWB8C17tywIV6AP4lhyxK1ckEbk-YZuiro3R1QBoQBibLxQXBA15pc-CBY0B9LrvIbCKa9eOls4Qupl-BQJwe0Vu7byWDQ5euyCuqKtHvLkOT21fNtbVoxP0QfblE2UwFkGCp4vthg5_qgOOcBWvnXFe4E4-W3KYkahflsl1mNcCJ15s2r3mZC6uzLhg"
+                    src="https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?auto=format&fit=crop&w=200&q=80"
                   />
                   <div className="flex flex-col text-[11px]">
                     <span className="font-display font-bold text-[#111c29]">32 Wheeler • Closed Container</span>

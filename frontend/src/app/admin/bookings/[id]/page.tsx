@@ -110,7 +110,7 @@ export default function AdminBookingDetailPage({ params }: { params?: { id?: str
 
             <div className="flex items-center gap-3.5">
               <img
-                src="https://lh3.googleusercontent.com/aida/AEtjO1VikpgIL6PbWrgzNeJ69WEF1bg2Xzo96NNq01pi3dmwJg3mnGS5WQUMj5IYjWaWUjwQsQ0fa-Qd6HOWHrFcO-wL8Wdn5ocW2Vn6Gc8VsWSkSpE3U1mEFb-4Z89rtFX-xLCX1XbR_6D2bApOxZQqEZ2Jkt3knsMh2kGnZzi9Ju9j_H6eAuMSWKS3JrSnsJdSOyT4u0_btuw8UtetrALLPsA2othW0bRnDlBL2QvvvkVUR7jMfMfQgQuRFVA"
+                src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80"
                 alt="Gurpreet Singh"
                 className="w-14 h-14 rounded-2xl object-cover border border-slate-200 shadow-xs"
               />

@@ -28,7 +28,7 @@ const DRIVERS: DriverItem[] = [
     fitnessExp: 'Nov 2026',
     tripsCompleted: 142,
     avatar:
-      'https://lh3.googleusercontent.com/aida/AEtjO1VikpgIL6PbWrgzNeJ69WEF1bg2Xzo96NNq01pi3dmwJg3mnGS5WQUMj5IYjWaWUjwQsQ0fa-Qd6HOWHrFcO-wL8Wdn5ocW2Vn6Gc8VsWSkSpE3U1mEFb-4Z89rtFX-xLCX1XbR_6D2bApOxZQqEZ2Jkt3knsMh2kGnZzi9Ju9j_H6eAuMSWKS3JrSnsJdSOyT4u0_btuw8UtetrALLPsA2othW0bRnDlBL2QvvvkVUR7jMfMfQgQuRFVA',
+      'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80',
   },
   {
     id: 'DRV-1083',
@@ -41,7 +41,7 @@ const DRIVERS: DriverItem[] = [
     fitnessExp: 'In 3 Days',
     tripsCompleted: 88,
     avatar:
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuDRxwPqKiKxJfKuAh1JUaW8qW-c2ETMAPjJ_ERPQ9cBQu5FBndlkNeDcB-hPPPxnIIdJbvgpqWrWPrmPVYwI1Re5ZeJ-b253YxivQyO88ZgDpbn9hM-jr9d0cwmiJICqXiV4ckSt5Ew5mGbATdJn9cfIBFulQuHNbOQ_4whW6inceox0ucmAk21k4H9_81K4jjU7J0hPxhBAboHq9x7zanULwB5aDdvG7fDgpdS2U3_FewYPFYfC2UWDw',
+      'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80',
   },
   {
     id: 'DRV-1084',
@@ -54,7 +54,7 @@ const DRIVERS: DriverItem[] = [
     fitnessExp: 'Expired Yesterday',
     tripsCompleted: 54,
     avatar:
-      'https://lh3.googleusercontent.com/aida/AEtjO1UXoYK0a4cuXNBoZV8zC8FrZuZ-VmhrMLOAvUkGPkCpxoo2C40A5f7p8-2zAl-sYe6DyT6Q3QYe4gdDanfTOVCjxyxTFmcjcyem5XB2n_EW1W779rrUSRRo4C_gldIrawt0zrPKOcLqCT7zJv5lkeBiARdfwOXxNtlS5-I5lOUP8D2CMy2GkK5cUle4V1IXibOG8W0_kuA-kXZ1K3aGYy0cJI_ImY_xo06gfK-bg1eAZn4iiNBUCK_hZkKj',
+      'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=200&q=80',
   },
   {
     id: 'DRV-1085',
@@ -67,7 +67,7 @@ const DRIVERS: DriverItem[] = [
     fitnessExp: 'Oct 2027',
     tripsCompleted: 210,
     avatar:
-      'https://lh3.googleusercontent.com/aida/AEtjO1VikpgIL6PbWrgzNeJ69WEF1bg2Xzo96NNq01pi3dmwJg3mnGS5WQUMj5IYjWaWUjwQsQ0fa-Qd6HOWHrFcO-wL8Wdn5ocW2Vn6Gc8VsWSkSpE3U1mEFb-4Z89rtFX-xLCX1XbR_6D2bApOxZQqEZ2Jkt3knsMh2kGnZzi9Ju9j_H6eAuMSWKS3JrSnsJdSOyT4u0_btuw8UtetrALLPsA2othW0bRnDlBL2QvvvkVUR7jMfMfQgQuRFVA',
+      'https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=200&q=80',
   },
 ];
 

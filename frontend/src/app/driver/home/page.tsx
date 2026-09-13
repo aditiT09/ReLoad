@@ -116,7 +116,7 @@ const DEFAULT_LOAD_OFFERS: LoadOffer[] = [
       tag: 'COLD_CHAIN',
     },
     image:
-      'https://lh3.googleusercontent.com/aida/AEtjO1UKeG8Z6Ki54FRomheguS25J2Ut4fN4E27Q4Y77Yb-TxsK4pN59SkxHa_VLi7hYVBFcaK0FEZovDYNZ_C7PI9RlzkqeirZncYYT-ZmriY4PMmPKHfoiKTcnUdMGW8phXLxsh6If5R6F69wzyjNV03GF6mu1VY3esfy_vYHcYpnq1wo-g7BMsuq_Weu1gLdWLYN-xy3O-KnGDr0dGU5KyZLWVKamt1_zXQEluf2QFslpFowEtoG5I7UhyD4n',
+      'https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 'load-2',
@@ -170,7 +170,7 @@ const DEFAULT_LOAD_OFFERS: LoadOffer[] = [
       tag: 'EXPRESS',
     },
     image:
-      'https://lh3.googleusercontent.com/aida/AEtjO1UKeG8Z6Ki54FRomheguS25J2Ut4fN4E27Q4Y77Yb-TxsK4pN59SkxHa_VLi7hYVBFcaK0FEZovDYNZ_C7PI9RlzkqeirZncYYT-ZmriY4PMmPKHfoiKTcnUdMGW8phXLxsh6If5R6F69wzyjNV03GF6mu1VY3esfy_vYHcYpnq1wo-g7BMsuq_Weu1gLdWLYN-xy3O-KnGDr0dGU5KyZLWVKamt1_zXQEluf2QFslpFowEtoG5I7UhyD4n',
+      'https://images.unsplash.com/photo-1519003722824-194d4455a60c?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 'load-3',
@@ -224,7 +224,7 @@ const DEFAULT_LOAD_OFFERS: LoadOffer[] = [
       tag: 'HIGH_MARGIN',
     },
     image:
-      'https://lh3.googleusercontent.com/aida/AEtjO1UKeG8Z6Ki54FRomheguS25J2Ut4fN4E27Q4Y77Yb-TxsK4pN59SkxHa_VLi7hYVBFcaK0FEZovDYNZ_C7PI9RlzkqeirZncYYT-ZmriY4PMmPKHfoiKTcnUdMGW8phXLxsh6If5R6F69wzyjNV03GF6mu1VY3esfy_vYHcYpnq1wo-g7BMsuq_Weu1gLdWLYN-xy3O-KnGDr0dGU5KyZLWVKamt1_zXQEluf2QFslpFowEtoG5I7UhyD4n',
+      'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80',
   },
   {
     id: 'load-4',
@@ -278,7 +278,7 @@ const DEFAULT_LOAD_OFFERS: LoadOffer[] = [
       tag: 'BACKHAUL',
     },
     image:
-      'https://lh3.googleusercontent.com/aida/AEtjO1UKeG8Z6Ki54FRomheguS25J2Ut4fN4E27Q4Y77Yb-TxsK4pN59SkxHa_VLi7hYVBFcaK0FEZovDYNZ_C7PI9RlzkqeirZncYYT-ZmriY4PMmPKHfoiKTcnUdMGW8phXLxsh6If5R6F69wzyjNV03GF6mu1VY3esfy_vYHcYpnq1wo-g7BMsuq_Weu1gLdWLYN-xy3O-KnGDr0dGU5KyZLWVKamt1_zXQEluf2QFslpFowEtoG5I7UhyD4n',
+      'https://images.unsplash.com/photo-1580674684081-7617fbf3d745?auto=format&fit=crop&w=600&q=80',
   },
 ];
 
@@ -368,7 +368,7 @@ export default function DriverHomePage() {
           tag: 'EXPRESS',
         },
         image:
-          'https://lh3.googleusercontent.com/aida/AEtjO1UKeG8Z6Ki54FRomheguS25J2Ut4fN4E27Q4Y77Yb-TxsK4pN59SkxHa_VLi7hYVBFcaK0FEZovDYNZ_C7PI9RlzkqeirZncYYT-ZmriY4PMmPKHfoiKTcnUdMGW8phXLxsh6If5R6F69wzyjNV03GF6mu1VY3esfy_vYHcYpnq1wo-g7BMsuq_Weu1gLdWLYN-xy3O-KnGDr0dGU5KyZLWVKamt1_zXQEluf2QFslpFowEtoG5I7UhyD4n',
+          'https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=600&q=80',
       };
 
       setAvailableLoads([liveCustomerLoad, ...DEFAULT_LOAD_OFFERS]);

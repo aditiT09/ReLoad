@@ -8,6 +8,16 @@ ReLoad is an AI-powered return-load optimization platform that connects trucks c
 
 ---
 
+## 🌟 What's New & Recently Enhanced
+
+- 📡 **Real-Time Device GPS Telemetry & Live WebSockets**: Replaced simulated mock tracking with live device geolocation (`navigator.geolocation.watchPosition`), heading/bearing calculations, and persistent WebSocket telemetry streaming (`/api/v1/ws/gps/{booking_id}`) persisted to PostgreSQL `gps_pings` and broadcast live to shippers.
+- 💰 **Driver Multi-Load Opportunity Marketplace**: Upgraded the driver portal from single-dispatch to a multi-load freight exchange ranked by **Net Profit Margin (₹/km and % yield)**, dynamic corridor filters (*All, Highest Profit, Express, Cold-Chain*), and real-time integration with live shipper bookings.
+- 🗺️ **Smart Autocomplete Place Suggestion Table**: Interactive token-matching search table for origins and destinations across national highway corridors, major freight hubs (MIDC, ICD, SEZ), and expressways with single-city locking safeguards.
+- 🔐 **Driver Mobile OTP Authentication & KYC Gate**: Strict 2-step driver onboarding wizard (`Demo OTP: 123456`, auto-advance 6-digit inputs, 1-click auto-fill) with VAHAN/ULIP integration that cleanly gates vehicle documents and camera photo uploads until phone verification is complete.
+- ⚡ **Connection & Cold-Start Resiliency**: Added timeout race handling and custom abort controller management to ensure zero UI freezes when remote cloud backends (e.g. Render free tier) spin up from sleep.
+
+---
+
 ## The Problem
 
 A large number of trucks complete deliveries and return without cargo, while businesses simultaneously struggle to find suitable transport for their shipments.
@@ -148,23 +158,24 @@ The flow is built around 3 specialized intelligence systems and an escrow safety
 ## Tech Stack
 
 ### Frontend
-- Next.js 14.2.35 (App Router — React Server Components + Client Components)
-- React 18.3.1 & React DOM 18.3.1
-- TypeScript 5.7.3
-- Tailwind CSS 3.4.17, PostCSS & Autoprefixer, `tailwind-merge` & `clsx`
-- Google Material Symbols Outlined, Lucide React 0.475.0
-- Web Speech API (`window.speechSynthesis`) — multi-lingual audio guidance in Hindi, Marathi, Gujarati, Punjabi, English *(a later tech-stack slide lists Tamil, Telugu instead of Gujarati, Punjabi — confirm the actual 5-language set before submission)*
-- React Context API (`LanguageContext.tsx`) for i18n + RTL/LTR script rendering
-- Custom typed HTTP client (`src/lib/api.ts`) with Bearer token authentication
+- **Framework:** Next.js 14.2.35 (App Router — React Server Components + Client Components)
+- **Core Library:** React 18.3.1 & React DOM 18.3.1
+- **Language:** TypeScript 5.7.3
+- **Styling:** Tailwind CSS 3.4.17, PostCSS & Autoprefixer, `tailwind-merge` & `clsx`
+- **Icons & Symbols:** Google Material Symbols Outlined, Lucide React 0.475.0
+- **Voice & Accessibility:** Web Speech API (`window.speechSynthesis`) — multi-lingual audio guidance across 5 dialects (Hindi, Marathi, Gujarati, Punjabi, English)
+- **Geolocation & Telematics:** HTML5 Geolocation API (`navigator.geolocation.watchPosition`), custom `GPSSocket` persistent client with auto-reconnect and exponential backoff
+- **Internationalization:** React Context API (`LanguageContext.tsx`) for i18n + RTL/LTR script rendering
+- **API Client:** Custom typed HTTP client (`src/lib/api.ts`) with Bearer token authentication, timeout management, and graceful abort handling
 
 ### Backend
-- FastAPI 0.141.1 (ASGI)
-- Uvicorn 0.52.4 (httptools + watchfiles for hot reload)
-- Python 3.14 (3.10+ compatible)
-- Pydantic 2.13.5 & pydantic-core 2.46.5, pydantic-settings 2.15.0
-- WebSockets 17.1 — live GPS telemetry & fleet pinging
-- python-jose 3.5.0 (JWT, HS256), passlib 1.7.4 + bcrypt 4.0.1, cryptography 50.0.1 & rsa 4.9.1
-- Deployed on Render (`reload-backend-np1r.onrender.com`)
+- **Framework:** FastAPI 0.141.1 (ASGI)
+- **Server:** Uvicorn 0.52.4 (httptools + watchfiles for hot reload)
+- **Runtime:** Python 3.14 (3.10+ compatible)
+- **Cloud Deployment:** Hosted on Render (`reload-backend-np1r.onrender.com`)
+- **Validation & Settings:** Pydantic 2.13.5, pydantic-core 2.46.5, pydantic-settings 2.15.0
+- **WebSockets:** websockets 17.1 — real-time hardware GPS telemetry streaming & in-transit messaging
+- **Security & Auth:** python-jose 3.5.0 (JWT, HS256), passlib 1.7.4 + bcrypt 4.0.1, cryptography 50.0.1 & rsa 4.9.1
 
 ### Database & ORM
 - PostgreSQL, cloud-hosted via Supabase, PostGIS-ready for spatial coordinates
@@ -257,26 +268,26 @@ ReLoad/
 │   │       └── safety/
 │   │           ├── detector.py        # Telematics route deviation & anomaly detector
 │   │           └── thresholds.py      # Geofence, speed, night-driving rules
-│   └── tests/                         # Test suite (730+ LOC)
+│   └── tests/                         # Test suite
 │       ├── test_person4_flows.py      # Escrow, surcharges, handoff, WS tests
 │       ├── test_trust_module.py       # Trust scores & document expiry tests
-│       └── test_gps_websocket.py      # Automated backend GPS ingestion tests
+│       └── test_gps_websocket.py      # Hardware GPS telemetry & WebSocket tests
 └── frontend/
     ├── package.json                   # Next.js 14, Tailwind CSS, Lucide
     ├── .env.local                     # NEXT_PUBLIC_API_URL=http://localhost:8000
     ├── next.config.mjs
     ├── tailwind.config.ts
     └── src/
-        ├── lib/
-        │   ├── api.ts                 # Typed fetch client connecting to FastAPI
-        │   ├── gpsSocket.ts           # Client-side WebSocket manager for GPS streaming
-        │   └── locationService.ts     # Real-time lat/long, heading, speed, timestamp handling
         ├── hooks/
-        │   └── useDriverLocation.ts   # HTML5 Geolocation API hook w/ highway-route fallback
+        │   └── useDriverLocation.ts   # Continuous HTML5 Geolocation watch hook
+        ├── lib/
+        │   ├── api.ts                 # Typed fetch client with Bearer auth & abort control
+        │   ├── gpsSocket.ts           # Persistent WebSocket telemetry client
+        │   └── locationService.ts     # Haversine distance, bearings & deadband filters
         ├── context/
         │   └── LanguageContext.tsx    # 5-dialect i18n + Web Speech audio assistance
         ├── components/
-        │   ├── ScreenSwitcher.tsx     # Quick navigator across all 23 screens
+        │   ├── ScreenSwitcher.tsx     # Quick navigator across all 27 screens
         │   ├── admin/                 # Admin sidebar & header layouts
         │   ├── customer/              # Customer bottom navigation bar
         │   └── driver/                # Driver navigation controls
@@ -301,15 +312,18 @@ ReLoad/
 |---|---|---|
 | FastAPI Backend Core | ✅ Done | 12 routers, RBAC (customer, driver, company_admin), JWT authentication |
 | Supabase PostgreSQL | ✅ Done | 14 tables created, Alembic migrations applied, 45+ seed users & 120+ trips |
-| Next.js Frontend | ✅ Done | 23 screens across Shipper, Driver, and Admin portals, fully functional |
-| Frontend-Backend API | ✅ Done | Central typed client in `frontend/src/lib/api.ts` connecting all portals |
+| Next.js Frontend | ✅ Done | 27 screens across Shipper, Driver, and Admin portals, fully functional |
+| Frontend-Backend API | ✅ Done | Central typed client in `frontend/src/lib/api.ts` with timeout race handling |
 | ML: Demand Forecasting | ✅ Done | Trained `model.pkl` (Random Forest, 38MB) + `/api/v1/demand/forecast` |
 | ML: Telematics Safety | ✅ Done | `detector.py` rule-based anomaly detector for stops, night driving, deviation |
 | Trust Score Engine | ✅ Done | Dynamic formula based on VAHAN compliance, reports, and handoffs |
 | Payment Escrow Gating | ✅ Done | Escrow checkout (`held` status), released only after dual handoff proof validation |
-| WebSockets | ✅ Done | Dual WebSocket endpoints for GPS pings and live chat |
-| VAHAN / ULIP / FASTag | 🔶 Simulated/Integrated | Vehicle age-cap checks (5-year limit), fitness expiry dates, locked toll calculations |
-| Test Suite | ✅ Ready | 730+ lines of tests in `backend/tests/`, SQLite in-memory mock engine |
+| Hardware GPS WebSockets | ✅ Done | Native WebSockets at `/api/v1/ws/gps` with DB persistence & broadcast |
+| Driver Multi-Load Marketplace | ✅ Done | Profit margin rankings (`₹/km`, `% margin`), filters, route stepper |
+| Driver OTP & KYC Gate | ✅ Done | 2-step onboarding wizard with demo OTP (`123456`), auto-fill, and VAHAN gate |
+| Customer Corridors Autocomplete | ✅ Done | Token-matching dropdown across national hubs with single-city locking |
+| VAHAN / ULIP / FASTag | 🔶 Integrated | Age-cap checks, fitness expiry dates, locked toll calculations |
+| Test Suite | ✅ Ready | 13 test suites (730+ lines) including WebSocket tests & SQLite mock engine |
 
 ---
 

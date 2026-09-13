@@ -92,7 +92,7 @@ export default function DriverTrustScorePage() {
               <img
                 className="w-14 h-14 rounded-full object-cover shadow-sm border border-slate-200"
                 alt="Rajesh Kumar Verma"
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuDRxwPqKiKxJfKuAh1JUaW8qW-c2ETMAPjJ_ERPQ9cBQu5FBndlkNeDcB-hPPPxnIIdJbvgpqWrWPrmPVYwI1Re5ZeJ-b253YxivQyO88ZgDpbn9hM-jr9d0cwmiJICqXiV4ckSt5Ew5mGbATdJn9cfIBFulQuHNbOQ_4whW6inceox0ucmAk21k4H9_81K4jjU7J0hPxhBAboHq9x7zanULwB5aDdvG7fDgpdS2U3_FewYPFYfC2UWDw"
+                src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80"
               />
               <span className="absolute bottom-0 right-0 w-4 h-4 rounded-full bg-[#0F6E56] flex items-center justify-center text-white text-[10px] ring-2 ring-white">
                 <span className="material-symbols-outlined text-[12px]" style={{ fontVariationSettings: "'FILL' 1" }}>

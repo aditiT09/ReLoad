@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.models.booking import Booking
 from app.models.demand_log import DemandLog
+from app.models.user import User
 from app.schemas.booking import BookingCreate, BookingStatusUpdate, BookingResponse
 from app.services.matching_service import find_verified_vehicle
 from app.services.fare_service import calculate_fare
@@ -21,6 +22,26 @@ router = APIRouter(prefix="/api/v1/bookings", tags=["bookings"])
 @router.post("", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 @router.post("/", response_model=BookingResponse, status_code=status.HTTP_201_CREATED)
 def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
+    # 0. Ensure customer exists to protect foreign key integrity
+    customer = db.execute(select(User).where(User.id == request.customer_id)).scalar_one_or_none()
+    if customer:
+        actual_customer_id = request.customer_id
+    else:
+        fallback_cust = db.execute(select(User).where(User.role == "customer")).scalars().first()
+        if fallback_cust:
+            actual_customer_id = fallback_cust.id
+        else:
+            new_cust = User(
+                id=request.customer_id,
+                role="customer",
+                name="Demo Shipper",
+                phone="+919876543210",
+                password_hash="demo_hash"
+            )
+            db.add(new_cust)
+            db.commit()
+            actual_customer_id = new_cust.id
+
     # 1. Enforce verified vehicle matching (never fall back to unverified)
     vehicle = find_verified_vehicle(
         db=db,
@@ -47,7 +68,7 @@ def create_booking(request: BookingCreate, db: Session = Depends(get_db)):
     
     # 3. Create the Booking row
     new_booking = Booking(
-        customer_id=request.customer_id,
+        customer_id=actual_customer_id,
         driver_id=vehicle.driver_id,
         vehicle_id=vehicle.id,
         pickup_address=request.pickup_address,

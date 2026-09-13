@@ -148,7 +148,7 @@ export default function DriverHandoffPage() {
           <img
             alt="Logistics loading dock bay with cargo truck"
             className="absolute inset-0 w-full h-full object-cover opacity-80"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuBuYHLDxO8IQvPBYAeN1U7yc1AouFjJXnVIq4q1kVcqIUmMtcXJg8JtehvSv7RT02uQG3_dI90Lgcxl37w90SpcbD6g-xLhvvk83ynXSGC_gvWgWcdT4YOfh_-2M11SpFOVNSCYWbWzQO7ho1zYaC3EHtS6iUTToS38yeWqlV7k1ltVhP3bTr5kaJJGE5MsTSsRFe30NCcgL8oAAV88fdWXn1OjBlIIDlD3O54qFJ8wA_El3_jsWZmqwA"
+            src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=600&q=80"
           />
           <div className="relative z-10 flex items-center justify-between">
             <div className="flex items-center gap-1.5 bg-[#0F172A]/80 backdrop-blur-md px-2.5 py-1 rounded-full text-white">

@@ -32,7 +32,11 @@ export function getUserId(): string | null {
         .join("")
     );
     const parsed = JSON.parse(jsonPayload);
-    return parsed.sub || null;
+    const sub = parsed.sub;
+    if (typeof sub === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sub)) {
+      return sub;
+    }
+    return null;
   } catch {
     return null;
   }
@@ -88,7 +92,15 @@ export async function apiFetch<T = unknown>(
 
     if (!res.ok) {
       const errorBody = await res.json().catch(() => ({ detail: res.statusText }));
-      throw new Error(errorBody.detail || `API error ${res.status}`);
+      let errorMsg = errorBody.detail || `API error ${res.status}`;
+      if (Array.isArray(errorMsg)) {
+        errorMsg = errorMsg
+          .map((e: any) => `${e.loc ? e.loc.slice(1).join('.') + ': ' : ''}${e.msg}`)
+          .join(', ');
+      } else if (typeof errorMsg === 'object' && errorMsg !== null) {
+        errorMsg = JSON.stringify(errorMsg);
+      }
+      throw new Error(errorMsg);
     }
 
     // 204 No Content → return null

@@ -173,7 +173,7 @@ export default function DriverForecastPage() {
             <img
               alt="Chakan Industrial Area heatmap corridor"
               className="w-full h-full object-cover opacity-75"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuCFaNmJECJLJbkFdcr7mVSz-ZpfQQuGV89heOSc_bTWq7pMW6iAp20z6e90Fxu59xoufcWHIW-VsiMgTpNwkm7ihF0Q-NShd_Vh6jLAygKsNM9kx5r5kmwburcQetmA4P-nvr9W_bSCPu7RtHzNvdb42iNKPsvCvDp49mfssdG-XR-aKvcx0kB0E6w--oUvMvssPEypELfoDnKIviQr7Ltuis-qhhCznSLbE4GdqoddVlWimc9DqOyrBA"
+              src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&w=800&q=80"
             />
             <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/80 via-transparent to-[#0F172A]/30 pointer-events-none"></div>
 

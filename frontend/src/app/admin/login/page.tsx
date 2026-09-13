@@ -49,7 +49,7 @@ export default function AdminLoginPage() {
             className="absolute inset-0 bg-cover bg-center opacity-40"
             style={{
               backgroundImage:
-                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuDfqAlK0USiSKCplEy0v_DrQzXGD0pLTOTOJcyfqKXkjPKH1xkpJQLxpfBu1mxIJ_JTxOUbWnvAh1mkGtQ08tJB7TyyuqWYtQKqUbW6TiqNbhGCVZjwplV3ZG7BbIo_Pg3wdawvBoLi_endIGA_8NE6E01YH_wt3JdZ1XP-Rhk5AV8jnudksBBCjwmj3AKJ7fkZCWvOnZZiKSYJnTMRb9_cPDYRqxidATOvNmlwposiz0OTOENVaYIA1w')",
+                "url('https://images.unsplash.com/photo-1601584115197-04ecc0da31d7?auto=format&fit=crop&w=1200&q=80')",
             }}
           ></div>
           <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A] via-[#0F172A]/70 to-[#0F172A]/40 mix-blend-multiply"></div>

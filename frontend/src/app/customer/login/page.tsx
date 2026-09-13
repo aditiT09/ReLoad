@@ -39,7 +39,8 @@ export default function CustomerLoginPage() {
   };
 
   const setupShipperSession = (fullPhone: string, backendToken?: string) => {
-    const demoSub = 'demo-shipper-' + fullPhone.replace(/\D/g, '').slice(-10);
+    const cleanDigits = fullPhone.replace(/\D/g, '').slice(-10).padStart(12, '0');
+    const demoSub = `00000000-0000-4000-8000-${cleanDigits}`;
     let sessionToken = backendToken;
     if (!sessionToken) {
       try {

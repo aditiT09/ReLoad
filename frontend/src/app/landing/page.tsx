@@ -85,7 +85,7 @@ export default function LandingRoleSplitPage() {
               <img
                 alt="Warehouse cargo bay with forklift loading freight trucks"
                 className="w-full h-full object-cover object-center"
-                src="https://lh3.googleusercontent.com/aida/AEtjO1UKeG8Z6Ki54FRomheguS25J2Ut4fN4E27Q4Y77Yb-TxsK4pN59SkxHa_VLi7hYVBFcaK0FEZovDYNZ_C7PI9RlzkqeirZncYYT-ZmriY4PMmPKHfoiKTcnUdMGW8phXLxsh6If5R6F69wzyjNV03GF6mu1VY3esfy_vYHcYpnq1wo-g7BMsuq_Weu1gLdWLYN-xy3O-KnGDr0dGU5KyZLWVKamt1_zXQEluf2QFslpFowEtoG5I7UhyD4n"
+                src="https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=800&q=80"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/95 via-[#0F172A]/35 to-transparent"></div>
               {/* Category Pill */}
@@ -160,7 +160,7 @@ export default function LandingRoleSplitPage() {
               <img
                 alt="Smiling Indian truck driver inside cab"
                 className="w-full h-full object-cover object-top"
-                src="https://lh3.googleusercontent.com/aida/AEtjO1VikpgIL6PbWrgzNeJ69WEF1bg2Xzo96NNq01pi3dmwJg3mnGS5WQUMj5IYjWaWUjwQsQ0fa-Qd6HOWHrFcO-wL8Wdn5ocW2Vn6Gc8VsWSkSpE3U1mEFb-4Z89rtFX-xLCX1XbR_6D2bApOxZQqEZ2Jkt3knsMh2kGnZzi9Ju9j_H6eAuMSWKS3JrSnsJdSOyT4u0_btuw8UtetrALLPsA2othW0bRnDlBL2QvvvkVUR7jMfMfQgQuRFVA"
+                src="https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&w=800&q=80"
               />
               <div className="absolute inset-0 bg-gradient-to-t from-[#0F172A]/95 via-[#0F172A]/35 to-transparent"></div>
               {/* Category Pill */}

@@ -29,7 +29,7 @@ export default function AdminDashboardPage() {
             className="absolute inset-0 bg-cover bg-center mix-blend-overlay opacity-40"
             style={{
               backgroundImage:
-                "url('https://lh3.googleusercontent.com/aida-public/AB6AXuCvMNCvF55QvLBgS92Nouy61oQTXNa6YxEyWeVBbiYi8oIdm0d8UF0C8YTolclhFZg5O0km6RdUqIH9oWowaiRES949qwjEEnbMdrTQKjywBJ2KT3P7MOp6rgDc4SGwlMt0hjkk22_vVauuGviEpqI14cLzwKX7vdwZ2hoh6ejGdsUArKP_HagrJiyB1zolHONDKZ8K_mxWSKmf3kuWMOklNyqp_6TDIixEjyAYeMwVvuGlugnYlo2vTg')",
+                "url('https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=1200&q=80')",
             }}
           ></div>
           <div className="absolute inset-0 bg-gradient-to-r from-[#0F172A] via-[#0F172A]/85 to-transparent"></div>
